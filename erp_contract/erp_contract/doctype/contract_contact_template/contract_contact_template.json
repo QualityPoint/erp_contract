@@ -1,0 +1,42 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-06-03 20:04:34.501792",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "template"
+ ],
+ "fields": [
+  {
+   "description": "<h4>Default Template</h4>\n<p>Uses <a href=\"http://jinja.pocoo.org/docs/templates/\" rel=\"noopener noreferrer\">Jinja Templating</a> and all the fields of Contact (including Custom Fields if any) will be available</p>\n<pre><code>{% if salutation %}{{ salutation }} {% endif %}{{ full_name }}&lt;br&gt;\n{% if designation %}{{ designation }}&lt;br&gt;{% endif -%}\n{% if mobile_no %}Mobile: {{ mobile_no }}&lt;br&gt;{% endif -%}\n{% if phone %}Phone: {{ phone }}&lt;br&gt;{% endif -%}\n{% if email_id %}Email: {{ email_id }}&lt;br&gt;{% endif -%}\n</code></pre>",
+   "fieldname": "template",
+   "fieldtype": "Code",
+   "label": "Template"
+  }
+ ],
+ "grid_page_length": 50,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-06-03 20:06:00.871567",
+ "modified_by": "Administrator",
+ "module": "ERP Contract",
+ "name": "Contract Contact Template",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "Sales Master Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

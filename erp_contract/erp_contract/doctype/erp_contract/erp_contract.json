@@ -1,0 +1,672 @@
+{
+ "actions": [],
+ "autoname": "naming_series:",
+ "creation": "2026-06-03 18:33:17.756461",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "section_break_4ucd",
+  "naming_series",
+  "customer",
+  "customer_name",
+  "customer_tax_id",
+  "column_break_egua",
+  "contract_date",
+  "contract_category",
+  "column_break_etef",
+  "company",
+  "company_tax_id",
+  "contract_type",
+  "contract_duration_section",
+  "start_date",
+  "end_date",
+  "column_break_kalh",
+  "duration_uom",
+  "contract_duration",
+  "more_info_section",
+  "status",
+  "remarks",
+  "amended_from",
+  "column_break_adli",
+  "is_renewed",
+  "contract_renewal_records",
+  "contract_parties_tab",
+  "company_party_section",
+  "company_primary_official",
+  "official_contact_display",
+  "column_break_scix",
+  "company_address",
+  "company_address_display",
+  "customer_party_section",
+  "customer_primary_official",
+  "customer_contact_display",
+  "column_break_eiji",
+  "customer_address",
+  "customer_address_display",
+  "parties_representatives_section",
+  "company_representatives",
+  "column_break_yrjk",
+  "customer_representatives",
+  "amount_and_payment_tab",
+  "contract_amount_section",
+  "sales_order",
+  "currency",
+  "column_break_wnkm",
+  "net_total",
+  "net_total_in_words",
+  "total_taxes_and_charges",
+  "advance_payment_section",
+  "advance_payment_entry",
+  "column_break_nlra",
+  "advance_amount",
+  "advance_amount_in_words",
+  "installment_section",
+  "apply_installment_payment",
+  "due_start_date",
+  "amount_due",
+  "column_break_pwwq",
+  "payment_periodicity",
+  "installment_count",
+  "create_schedule",
+  "section_break_divh",
+  "payment_schedule",
+  "terms_and_conditions_tab",
+  "contract_terms_section",
+  "terms_template",
+  "contract_terms",
+  "signature_tab",
+  "is_signed",
+  "signed_contract",
+  "signee",
+  "signed_on",
+  "ip_address",
+  "column_break_gnrr",
+  "signee_customer",
+  "signed_by_customer"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_break_4ucd",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "ERP Contract",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Series",
+   "no_copy": 1,
+   "options": "ERP-CONT-.YYYY.-",
+   "reqd": 1,
+   "set_only_once": 1
+  },
+  {
+   "fieldname": "column_break_egua",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Customer",
+   "options": "Customer",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "bold": 1,
+   "fetch_from": "customer.customer_name",
+   "fieldname": "customer_name",
+   "fieldtype": "Data",
+   "label": "Customer Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_etef",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Company",
+   "options": "Company",
+   "remember_last_selected_value": 1,
+   "reqd": 1
+  },
+  {
+   "bold": 1,
+   "fetch_from": "company.tax_id",
+   "fieldname": "company_tax_id",
+   "fieldtype": "Data",
+   "label": "Company Tax ID",
+   "read_only": 1
+  },
+  {
+   "fetch_from": "customer.tax_id",
+   "fieldname": "customer_tax_id",
+   "fieldtype": "Data",
+   "label": "Tax ID",
+   "read_only": 1
+  },
+  {
+   "default": "Today",
+   "fieldname": "contract_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Contract Date",
+   "reqd": 1
+  },
+  {
+   "default": "Duration-Based",
+   "description": "<ul><li>Duration-Based: Depends on contract expiry.</li><li>Milestone-Based: Depends on milestone completion.</li></ul>",
+   "fieldname": "contract_category",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Contract Category",
+   "options": "\nDuration-Based\nMilestone-Based",
+   "reqd": 1
+  },
+  {
+   "fieldname": "contract_duration_section",
+   "fieldtype": "Section Break",
+   "label": "Contract Duration"
+  },
+  {
+   "fieldname": "start_date",
+   "fieldtype": "Date",
+   "label": "Start Date",
+   "reqd": 1
+  },
+  {
+   "depends_on": "eval:doc.contract_category==\"Duration-Based\"",
+   "fieldname": "end_date",
+   "fieldtype": "Date",
+   "label": "End Date",
+   "mandatory_depends_on": "eval:doc.contract_category==\"Duration-Based\""
+  },
+  {
+   "fieldname": "column_break_kalh",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:doc.contract_category==\"Duration-Based\"",
+   "fieldname": "contract_duration",
+   "fieldtype": "Float",
+   "label": "Contract Duration",
+   "precision": "2",
+   "read_only": 1
+  },
+  {
+   "default": "Month",
+   "depends_on": "eval:doc.contract_category==\"Duration-Based\"",
+   "fieldname": "duration_uom",
+   "fieldtype": "Select",
+   "label": "Duration UOM",
+   "mandatory_depends_on": "eval:doc.contract_category==\"Duration-Based\"",
+   "options": "\nDay\nMonth\nYear"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "more_info_section",
+   "fieldtype": "Section Break",
+   "label": "More Info"
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "no_copy": 1,
+   "options": "Draft\nUnsigned\nActive\nInactive\nOn Hold\nCompleted\nTerminated\nCancelled",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_adli",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "terms_and_conditions_tab",
+   "fieldtype": "Tab Break",
+   "label": "Terms & Conditions"
+  },
+  {
+   "fieldname": "contract_terms_section",
+   "fieldtype": "Section Break",
+   "label": "Contract Terms"
+  },
+  {
+   "fieldname": "terms_template",
+   "fieldtype": "Link",
+   "label": "Contract Terms Template",
+   "options": "ERP Contract Terms Template"
+  },
+  {
+   "fieldname": "contract_terms",
+   "fieldtype": "Table",
+   "label": "Terms and Conditions",
+   "options": "ERP Contract Term",
+   "reqd": 1
+  },
+  {
+   "fieldname": "amount_and_payment_tab",
+   "fieldtype": "Tab Break",
+   "label": "Amount & Payments"
+  },
+  {
+   "fieldname": "contract_amount_section",
+   "fieldtype": "Section Break",
+   "label": "Contract Amount"
+  },
+  {
+   "fieldname": "sales_order",
+   "fieldtype": "Link",
+   "in_global_search": 1,
+   "label": "Sales Order",
+   "no_copy": 1,
+   "options": "Sales Order",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "sales_order.currency",
+   "fieldname": "currency",
+   "fieldtype": "Link",
+   "label": "Currency",
+   "options": "Currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_wnkm",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "total_taxes_and_charges",
+   "fieldtype": "Currency",
+   "label": "Total Taxes and Charges",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_nlra",
+   "fieldtype": "Column Break"
+  },
+  {
+   "collapsible": 1,
+   "collapsible_depends_on": "eval:doc.apply_installment_payment",
+   "fieldname": "installment_section",
+   "fieldtype": "Section Break",
+   "hide_border": 1,
+   "label": "Installment Payment"
+  },
+  {
+   "default": "0",
+   "fieldname": "apply_installment_payment",
+   "fieldtype": "Check",
+   "label": "Apply Installment Payment"
+  },
+  {
+   "depends_on": "eval:doc.apply_installment_payment",
+   "fieldname": "due_start_date",
+   "fieldtype": "Date",
+   "label": "Due Start Date"
+  },
+  {
+   "depends_on": "eval:doc.apply_installment_payment",
+   "fieldname": "payment_periodicity",
+   "fieldtype": "Select",
+   "label": "Payment Periodicity",
+   "options": "\nMonthly\nQuarterly\nHalf-Yearly\nYearly"
+  },
+  {
+   "depends_on": "eval:doc.apply_installment_payment",
+   "fieldname": "create_schedule",
+   "fieldtype": "Button",
+   "label": "Create Schedule"
+  },
+  {
+   "fieldname": "section_break_divh",
+   "fieldtype": "Section Break"
+  },
+  {
+   "depends_on": "eval:doc.apply_installment_payment",
+   "fieldname": "payment_schedule",
+   "fieldtype": "Table",
+   "label": "Payment Schedule",
+   "mandatory_depends_on": "eval:doc.apply_installment_payment",
+   "options": "Installment Schedule"
+  },
+  {
+   "fieldname": "signature_tab",
+   "fieldtype": "Tab Break",
+   "label": "Signature"
+  },
+  {
+   "allow_on_submit": 1,
+   "default": "0",
+   "fieldname": "is_signed",
+   "fieldtype": "Check",
+   "label": "Signed",
+   "no_copy": 1
+  },
+  {
+   "allow_on_submit": 1,
+   "depends_on": "eval:doc.is_signed",
+   "fieldname": "signed_contract",
+   "fieldtype": "Attach",
+   "label": "Signed Contract",
+   "no_copy": 1
+  },
+  {
+   "fieldname": "column_break_gnrr",
+   "fieldtype": "Column Break"
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "signee",
+   "fieldtype": "Data",
+   "in_global_search": 1,
+   "label": "Signee",
+   "no_copy": 1
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "signed_on",
+   "fieldtype": "Datetime",
+   "label": "Signed On",
+   "no_copy": 1
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "ip_address",
+   "fieldtype": "Data",
+   "label": "IP Address",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "signee_customer",
+   "fieldtype": "Signature",
+   "label": "Signee (Customer)"
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "signed_by_customer",
+   "fieldtype": "Link",
+   "label": "Signed By (Customer)",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "contract_parties_tab",
+   "fieldtype": "Tab Break",
+   "label": "Contract Parties"
+  },
+  {
+   "fieldname": "company_primary_official",
+   "fieldtype": "Link",
+   "label": "Company Primary Official",
+   "options": "Company Official",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_scix",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "official_contact_display",
+   "fieldtype": "Text Editor",
+   "label": "Official Contact",
+   "read_only": 1
+  },
+  {
+   "fieldname": "company_address",
+   "fieldtype": "Link",
+   "label": "Company Address",
+   "options": "Address",
+   "reqd": 1
+  },
+  {
+   "fieldname": "company_address_display",
+   "fieldtype": "Text Editor",
+   "label": "Address",
+   "read_only": 1
+  },
+  {
+   "fieldname": "customer_party_section",
+   "fieldtype": "Section Break",
+   "label": "Customer Party"
+  },
+  {
+   "fieldname": "customer_primary_official",
+   "fieldtype": "Link",
+   "label": "Customer Primary Official",
+   "options": "Contact",
+   "reqd": 1
+  },
+  {
+   "fieldname": "customer_contact_display",
+   "fieldtype": "Text Editor",
+   "label": "Primary Contact",
+   "read_only": 1
+  },
+  {
+   "fieldname": "customer_representatives",
+   "fieldtype": "Table",
+   "label": "Customer Representatives",
+   "options": "Customer Official Representative"
+  },
+  {
+   "fieldname": "column_break_eiji",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "customer_address",
+   "fieldtype": "Link",
+   "label": "Customer Address",
+   "options": "Address",
+   "reqd": 1
+  },
+  {
+   "fieldname": "customer_address_display",
+   "fieldtype": "Text Editor",
+   "label": "Address",
+   "read_only": 1
+  },
+  {
+   "fieldname": "company_party_section",
+   "fieldtype": "Section Break",
+   "label": "Company Party"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "parties_representatives_section",
+   "fieldtype": "Section Break",
+   "label": "Parties Representatives"
+  },
+  {
+   "fieldname": "column_break_yrjk",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:doc.apply_installment_payment",
+   "fieldname": "amount_due",
+   "fieldtype": "Currency",
+   "label": "Amount Due",
+   "non_negative": 1,
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "bold": 1,
+   "fieldname": "net_total",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Net Total",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "net_total_in_words",
+   "fieldtype": "Small Text",
+   "label": "Net Total In Words",
+   "read_only": 1
+  },
+  {
+   "fieldname": "advance_payment_entry",
+   "fieldtype": "Link",
+   "label": "Advance Payment Entry",
+   "no_copy": 1,
+   "options": "Payment Entry"
+  },
+  {
+   "fieldname": "advance_amount",
+   "fieldtype": "Currency",
+   "label": "Advance Amount",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "advance_amount_in_words",
+   "fieldtype": "Small Text",
+   "label": "Advance Amount In Words",
+   "read_only": 1
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "advance_payment_section",
+   "fieldtype": "Section Break",
+   "label": "Advance Payment"
+  },
+  {
+   "allow_on_submit": 1,
+   "default": "0",
+   "fieldname": "is_renewed",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Is Renewed",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "default": "Service",
+   "fieldname": "contract_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Contract Type",
+   "options": "\nService\nMaintenance\nTechnical Support\nLease",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_pwwq",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:doc.apply_installment_payment",
+   "fieldname": "installment_count",
+   "fieldtype": "Int",
+   "label": "Installment Count",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "company_representatives",
+   "fieldtype": "Table",
+   "label": "Company Representatives",
+   "options": "Company Official Representative"
+  },
+  {
+   "depends_on": "eval:doc.is_renewed",
+   "fieldname": "contract_renewal_records",
+   "fieldtype": "Table",
+   "label": "Contract Renewal Records",
+   "no_copy": 1,
+   "options": "Contract Renewal Record"
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "remarks",
+   "fieldtype": "Text",
+   "label": "Remarks",
+   "no_copy": 1,
+   "read_only": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2026-06-04 21:19:06.361027",
+ "modified_by": "Administrator",
+ "module": "ERP Contract",
+ "name": "ERP Contract",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "show_title_field_in_link": 1,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [
+  {
+   "color": "Red",
+   "title": "Draft"
+  },
+  {
+   "color": "Light Blue",
+   "title": "Unsigned"
+  },
+  {
+   "color": "Blue",
+   "title": "Active"
+  },
+  {
+   "color": "Gray",
+   "title": "Inactive"
+  },
+  {
+   "color": "Yellow",
+   "title": "On Hold"
+  },
+  {
+   "color": "Green",
+   "title": "Completed"
+  },
+  {
+   "color": "Red",
+   "title": "Terminated"
+  },
+  {
+   "color": "Red",
+   "title": "Cancelled"
+  }
+ ],
+ "title_field": "customer_name",
+ "track_changes": 1
+}

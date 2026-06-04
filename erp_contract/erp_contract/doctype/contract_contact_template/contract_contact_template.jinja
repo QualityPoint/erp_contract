@@ -1,0 +1,5 @@
+{% if salutation %}{{ salutation }} {% endif %}{{ full_name }}
+<br>{{ _("Designation") }}: {% if designation %} {{ designation }} {% else %} - {% endif -%}
+<br>{{ _("Mobile") }}: {% if mobile_no %} {{ mobile_no }} {% else %} - {% endif -%}
+<br>{{ _("Phone") }}: {% if phone %} {{ phone }} {% else %} - {% endif -%}
+<br>{{ _("Email") }}: {% if email_id %} {{ email_id }} {% else %} - {% endif -%}

@@ -1,0 +1,123 @@
+{
+    "actions": [],
+    "allow_rename": 1,
+    "creation": "2026-06-03 19:47:59.908163",
+    "doctype": "DocType",
+    "editable_grid": 1,
+    "engine": "InnoDB",
+    "field_order": [
+        "representative",
+        "designation",
+        "column_break_qjva",
+        "full_name",
+        "salutation",
+        "nationality",
+        "id_number",
+        "contacts_section",
+        "email_id",
+        "column_break_txki",
+        "mobile_no",
+        "phone_no"
+    ],
+    "fields": [
+        {
+            "fieldname": "column_break_qjva",
+            "fieldtype": "Column Break"
+        },
+        {
+            "fieldname": "contacts_section",
+            "fieldtype": "Section Break",
+            "label": "Contact"
+        },
+        {
+            "fieldname": "column_break_txki",
+            "fieldtype": "Column Break"
+        },
+        {
+            "fieldname": "representative",
+            "fieldtype": "Link",
+            "in_list_view": 1,
+            "label": "Representative",
+            "options": "Company Official",
+            "reqd": 1
+        },
+        {
+            "fetch_from": "representative.designation",
+            "fieldname": "designation",
+            "fieldtype": "Link",
+            "in_list_view": 1,
+            "label": "Designation",
+            "options": "Designation",
+            "read_only": 1
+        },
+        {
+            "fetch_from": "representative.full_name",
+            "fieldname": "full_name",
+            "fieldtype": "Data",
+            "label": "Full Name",
+            "read_only": 1
+        },
+        {
+            "fetch_from": "representative.salutation",
+            "fieldname": "salutation",
+            "fieldtype": "Link",
+            "label": "Salutation",
+            "options": "Salutation",
+            "read_only": 1
+        },
+        {
+            "fetch_from": "representative.nationality",
+            "fieldname": "nationality",
+            "fieldtype": "Link",
+            "label": "Nationality",
+            "options": "Nationality",
+            "read_only": 1
+        },
+        {
+            "fetch_from": "representative.id_number",
+            "fieldname": "id_number",
+            "fieldtype": "Data",
+            "label": "ID Number",
+            "read_only": 1
+        },
+        {
+            "fetch_from": "representative.email_id",
+            "fieldname": "email_id",
+            "fieldtype": "Data",
+            "label": "Email ID",
+            "options": "Email",
+            "read_only": 1
+        },
+        {
+            "fetch_from": "representative.mobile_no",
+            "fieldname": "mobile_no",
+            "fieldtype": "Data",
+            "label": "Mobile No",
+            "options": "Phone",
+            "read_only": 1
+        },
+        {
+            "fetch_from": "representative.phone",
+            "fieldname": "phone_no",
+            "fieldtype": "Data",
+            "label": "Phone No",
+            "options": "Phone",
+            "read_only": 1
+        }
+    ],
+    "grid_page_length": 50,
+    "index_web_pages_for_search": 1,
+    "istable": 1,
+    "links": [],
+    "modified": "2026-06-03 19:49:22.481871",
+    "modified_by": "Administrator",
+    "module": "ERP Contract",
+    "name": "Company Official Representative",
+    "owner": "Administrator",
+    "permissions": [],
+    "row_format": "Dynamic",
+    "rows_threshold_for_grid_search": 20,
+    "sort_field": "creation",
+    "sort_order": "DESC",
+    "states": []
+}

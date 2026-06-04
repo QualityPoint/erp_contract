@@ -1,6 +1,6 @@
 app_name = "erp_contract"
 app_title = "ERP Contract"
-app_publisher = "Quality Point"
+app_publisher = "QualityPoint"
 app_description = "Contract lifecycle management with payment schedules, terms, and party tracking for ERPNext."
 app_email = "bahnasyassem@gmail.com"
 app_license = "agpl-3.0"
@@ -8,7 +8,7 @@ app_license = "agpl-3.0"
 # Apps
 # ------------------
 
-# required_apps = []
+required_apps = ["erpnext"]
 
 # Each item in the list will be shown as an app in the apps page
 # add_to_apps_screen = [
@@ -25,7 +25,9 @@ app_license = "agpl-3.0"
 # ------------------
 
 # include js, css files in header of desk.html
-# app_include_css = "/assets/erp_contract/css/erp_contract.css"
+app_include_css = [
+    "/assets/erp_contract/css/contract.css"
+]
 # app_include_js = "/assets/erp_contract/js/erp_contract.js"
 
 # include js, css files in header of web template
@@ -86,13 +88,18 @@ app_license = "agpl-3.0"
 # ------------
 
 # before_install = "erp_contract.install.before_install"
-# after_install = "erp_contract.install.after_install"
+after_install = "erp_contract.install.after_install"
 
 # Uninstallation
 # ------------
 
 # before_uninstall = "erp_contract.uninstall.before_uninstall"
 # after_uninstall = "erp_contract.uninstall.after_uninstall"
+
+# Migration
+# ------------
+# before_migrate = "erp_contract.migration.before_migrate"
+# after_migrate = "erp_contract.migration.after_migrate"
 
 # Integration Setup
 # ------------------
@@ -149,23 +156,11 @@ app_license = "agpl-3.0"
 # Scheduled Tasks
 # ---------------
 
-# scheduler_events = {
-# 	"all": [
-# 		"erp_contract.tasks.all"
-# 	],
-# 	"daily": [
-# 		"erp_contract.tasks.daily"
-# 	],
-# 	"hourly": [
-# 		"erp_contract.tasks.hourly"
-# 	],
-# 	"weekly": [
-# 		"erp_contract.tasks.weekly"
-# 	],
-# 	"monthly": [
-# 		"erp_contract.tasks.monthly"
-# 	],
-# }
+scheduler_events = {
+    "daily": [
+        "erp_contract.utils.utils.update_status_for_contracts"
+    ],
+}
 
 # Testing
 # -------
@@ -255,4 +250,3 @@ app_license = "agpl-3.0"
 # ------------
 # List of apps whose translatable strings should be excluded from this app's translations.
 # ignore_translatable_strings_from = []
-
