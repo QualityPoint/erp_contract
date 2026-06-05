@@ -153,12 +153,28 @@ after_install = "erp_contract.install.after_install"
 # 	}
 # }
 
+# Document Events
+# ---------------
+# Hook on document methods and events
+
+doc_events = {
+    "Payment Entry": {
+        "on_submit": "erp_contract.overrides.payment_entry.update_contract_payment_status",
+        "on_cancel": "erp_contract.overrides.payment_entry.update_contract_payment_status",
+    },
+    "Journal Entry": {
+        "on_submit": "erp_contract.overrides.journal_entry.update_contract_payment_status_from_je",
+        "on_cancel": "erp_contract.overrides.journal_entry.update_contract_payment_status_from_je",
+    },
+}
+
 # Scheduled Tasks
 # ---------------
 
 scheduler_events = {
     "daily": [
-        "erp_contract.utils.utils.update_status_for_contracts"
+        "erp_contract.utils.payment.update_overdue_installments",
+        "erp_contract.utils.contract_status.update_status_for_contracts",
     ],
 }
 
