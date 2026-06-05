@@ -5,5 +5,5 @@
 from frappe.model.document import Document
 
 
-class ContractRenewalRecord(Document):
+class ContractRecord(Document):
 	pass
