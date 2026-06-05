@@ -1,0 +1,89 @@
+{
+    "actions": [],
+    "allow_rename": 1,
+    "creation": "2026-06-05 22:22:00.907230",
+    "doctype": "DocType",
+    "editable_grid": 1,
+    "engine": "InnoDB",
+    "field_order": [
+        "precedence",
+        "role",
+        "user",
+        "approval_status",
+        "column_break_scji",
+        "approved_on",
+        "rejection_reason",
+        "signature"
+    ],
+    "fields": [
+        {
+            "fieldname": "precedence",
+            "fieldtype": "Int",
+            "in_list_view": 1,
+            "label": "Precedence",
+            "read_only": 1
+        },
+        {
+            "fieldname": "role",
+            "fieldtype": "Link",
+            "in_list_view": 1,
+            "label": "Role",
+            "options": "Role",
+            "read_only": 1
+        },
+        {
+            "fieldname": "user",
+            "fieldtype": "Link",
+            "in_list_view": 1,
+            "label": "Approver",
+            "options": "User",
+            "read_only": 1
+        },
+        {
+            "fieldname": "approval_status",
+            "fieldtype": "Select",
+            "in_list_view": 1,
+            "label": "Status",
+            "options": "Waiting\nPending\nApproved\nRejected",
+            "default": "Waiting",
+            "read_only": 1
+        },
+        {
+            "fieldname": "column_break_scji",
+            "fieldtype": "Column Break"
+        },
+        {
+            "fieldname": "approved_on",
+            "fieldtype": "Datetime",
+            "label": "Approved On",
+            "read_only": 1
+        },
+        {
+            "fieldname": "rejection_reason",
+            "fieldtype": "Small Text",
+            "label": "Rejection Reason",
+            "read_only": 1
+        },
+        {
+            "fieldname": "signature",
+            "fieldtype": "Signature",
+            "label": "Signature",
+            "read_only": 1
+        }
+    ],
+    "grid_page_length": 50,
+    "index_web_pages_for_search": 1,
+    "istable": 1,
+    "links": [],
+    "modified": "2026-06-05 23:00:00.000000",
+    "modified_by": "Administrator",
+    "module": "ERP Contract",
+    "name": "Contract Approver",
+    "owner": "Administrator",
+    "permissions": [],
+    "row_format": "Dynamic",
+    "rows_threshold_for_grid_search": 20,
+    "sort_field": "creation",
+    "sort_order": "DESC",
+    "states": []
+}

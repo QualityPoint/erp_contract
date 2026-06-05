@@ -1,0 +1,90 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-06-05 17:22:47.723930",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "approvals_section",
+  "apply_hierarchical_approvals",
+  "roles",
+  "column_break_llru",
+  "renewals_section",
+  "renewal_grace_period",
+  "grace_period_uom",
+  "column_break_vldw"
+ ],
+ "fields": [
+  {
+   "fieldname": "approvals_section",
+   "fieldtype": "Section Break",
+   "label": "Approvals"
+  },
+  {
+   "default": "0",
+   "fieldname": "apply_hierarchical_approvals",
+   "fieldtype": "Check",
+   "label": "Apply Hierarchical Approvals"
+  },
+  {
+   "fieldname": "column_break_llru",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "renewals_section",
+   "fieldtype": "Section Break",
+   "label": "Renewals"
+  },
+  {
+   "fieldname": "column_break_vldw",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "fieldname": "renewal_grace_period",
+   "fieldtype": "Int",
+   "label": "Renewal Grace Period",
+   "non_negative": 1
+  },
+  {
+   "default": "Month",
+   "fieldname": "grace_period_uom",
+   "fieldtype": "Select",
+   "label": "Period UOM",
+   "options": "Day\nMonth"
+  },
+  {
+   "depends_on": "eval:doc.apply_hierarchical_approvals",
+   "fieldname": "roles",
+   "fieldtype": "Table",
+   "label": "Roles",
+   "mandatory_depends_on": "eval:doc.apply_hierarchical_approvals",
+   "options": "Contract Approval Role"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-06-05 22:04:01.115636",
+ "modified_by": "Administrator",
+ "module": "ERP Contract",
+ "name": "Contract Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

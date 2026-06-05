@@ -1,0 +1,51 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-06-05 22:00:28.466923",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "role",
+  "column_break_udji",
+  "precedence"
+ ],
+ "fields": [
+  {
+   "fieldname": "role",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Role",
+   "options": "Role",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_udji",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "precedence",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Precedence",
+   "options": "1\n2\n3\n4\n5\n6",
+   "reqd": 1,
+   "sort_options": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-06-05 22:03:08.761032",
+ "modified_by": "Administrator",
+ "module": "ERP Contract",
+ "name": "Contract Approval Role",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}
