@@ -5,7 +5,10 @@ import frappe
 from frappe import _
 from frappe.model.document import Document
 from frappe.utils.jinja import validate_template
-from erp_contract.utils.utils import calculate_contract_duration, get_contract_status
+from erp_contract.utils.contract_status import get_contract_status
+from erp_contract.utils.contract import calculate_contract_duration
+from erp_contract.utils.payment import recalculate_contract_payment
+from erp_contract.utils.approval import populate_approval_chain, assert_approval_chain_complete
 
 
 class ERPContract(Document):
@@ -37,13 +40,20 @@ class ERPContract(Document):
         self.validate_advance_payment_uniqueness()
         self.validate_customer_representatives()
         self.validate_company_representatives()
+        self.validate_company_primary_official()
         self.validate_contract_duration()
         self.validate_contract_terms()
         self.render_contract_terms()
         self.validate_installment_payment()
 
     def on_submit(self):
+        assert_approval_chain_complete(self)
         self.update_contract_status()
+        if self.sales_order:
+            recalculate_contract_payment({self.sales_order})
+
+    def before_submit(self):
+        populate_approval_chain(self)
 
     def before_update_after_submit(self):
         # Preserve manual statuses — only recalculate auto-driven ones
@@ -70,6 +80,20 @@ class ERPContract(Document):
         self._assert_field_unique(
             "advance_payment_entry", _("Advance Payment Entry"))
 
+    def validate_company_primary_official(self):
+        """Ensure the selected Company Primary Official has is_primary_official checked."""
+        if not self.company_primary_official:
+            return
+        is_primary = frappe.db.get_value(
+            "Company Official", self.company_primary_official, "is_primary_official"
+        )
+        if not is_primary:
+            frappe.throw(
+                _("Company Primary Official {0} does not have \"Is Primary Official\" checked.").format(
+                    frappe.bold(self.company_primary_official)
+                )
+            )
+
     def _assert_field_unique(self, fieldname, label):
         value = self.get(fieldname)
         if not value:
@@ -93,7 +117,7 @@ class ERPContract(Document):
         if not self.customer_representatives:
             return
 
-        seen = self._assert_no_duplicate_representatives(
+        self._assert_no_duplicate_representatives(
             self.customer_representatives, _("Customer Representatives")
         )
 
@@ -166,7 +190,6 @@ class ERPContract(Document):
                     )
                 )
             seen.add(row.representative)
-        return seen
 
     def validate_contract_duration(self):
         """Compute and set contract_duration from start_date, end_date, and duration_uom."""
@@ -221,3 +244,115 @@ class ERPContract(Document):
                     flt(total, 2), expected
                 )
             )
+
+
+@frappe.whitelist()
+def renew_contract(contract_name, contract_date, start_date, end_date, duration_uom, contract_duration):
+    """
+    Renew a submitted Duration-Based ERP Contract in-place.
+
+    Steps:
+      1. Guard: category, docstatus, status, grace window, new start_date >= current end_date.
+      2. Append current period to contract_records (archive).
+      3. Apply new period values + reset all financial/signature fields.
+      4. save() via ignore_validate_update_after_submit flag.
+    """
+    from dateutil.relativedelta import relativedelta
+    from frappe.utils import getdate, nowdate, add_days, flt
+
+    doc = frappe.get_doc("ERP Contract", contract_name)
+
+    # --- Permission check ---
+    if not frappe.has_permission("ERP Contract", "write", doc=doc):
+        frappe.throw(_("You do not have permission to renew this contract."), frappe.PermissionError)
+
+    # --- Input validation ---
+    if duration_uom not in ("Day", "Month", "Year"):
+        frappe.throw(_("Invalid Duration UOM: {0}").format(duration_uom))
+
+    # --- Guards ---
+    if doc.docstatus != 1:
+        frappe.throw(_("Only submitted contracts can be renewed."))
+    if doc.contract_category != "Duration-Based":
+        frappe.throw(_("Only Duration-Based contracts can be renewed."))
+    if doc.status not in ("Active", "Inactive"):
+        frappe.throw(_("Contract cannot be renewed in its current status ({0}).").format(doc.status))
+
+    # Grace window guard (server-side mirror of client check)
+    grace_period = frappe.db.get_single_value("Contract Settings", "renewal_grace_period") or 1
+    grace_uom = frappe.db.get_single_value("Contract Settings", "grace_period_uom") or "Month"
+    today = getdate(nowdate())
+    current_end = getdate(doc.end_date)
+    window_start = (
+        current_end - relativedelta(months=int(grace_period))
+        if grace_uom == "Month"
+        else add_days(current_end, -int(grace_period))
+    )
+    if today < window_start:
+        frappe.throw(_("The renewal window has not opened yet. It opens on {0}.").format(
+            frappe.format(window_start, {"fieldtype": "Date"})
+        ))
+
+    # New start must not be before current end_date (no overlapping periods)
+    if getdate(start_date) < current_end:
+        frappe.throw(_("New Start Date ({0}) cannot be before the current End Date ({1}).").format(
+            frappe.format(getdate(start_date), {"fieldtype": "Date"}),
+            frappe.format(current_end, {"fieldtype": "Date"}),
+        ))
+
+    # --- Archive current period ---
+    doc.append("contract_records", {
+        "contract_date": doc.contract_date,
+        "start_date": doc.start_date,
+        "end_date": doc.end_date,
+        "duration_uom": doc.duration_uom,
+        "contract_duration": doc.contract_duration,
+        "archived_contract": doc.signed_contract,
+    })
+
+    # --- New period ---
+    doc.contract_date = contract_date
+    doc.start_date = start_date
+    doc.end_date = end_date
+    doc.duration_uom = duration_uom
+    doc.contract_duration = flt(contract_duration, 2)
+
+    # --- Signature reset ---
+    doc.is_signed = 0
+    doc.signed_contract = ""
+    doc.signee = ""
+    doc.signed_on = None
+    doc.ip_address = ""
+    doc.signee_customer = ""
+    doc.signed_by_customer = ""
+
+    # --- Sales Order & financial reset ---
+    doc.sales_order = ""
+    doc.currency = ""
+    doc.net_total = 0
+    doc.net_total_in_words = ""
+    doc.total_taxes_and_charges = 0
+
+    # --- Advance payment reset ---
+    doc.advance_payment_entry = ""
+    doc.advance_amount = 0
+    doc.advance_amount_in_words = ""
+
+    # --- Installment reset (explicit — before_validate does NOT run on update_after_submit) ---
+    doc.apply_installment_payment = 0
+    doc.due_start_date = None
+    doc.payment_periodicity = ""
+    doc.amount_due = 0
+    doc.installment_count = 0
+    doc.payment_schedule = []
+
+    # --- Payment status reset ---
+    doc.per_payment = 0
+    doc.payment_status = "Unpaid"
+
+    # --- Renewal flag ---
+    doc.is_renewed = 1
+
+    # --- Save (bypasses allow_on_submit; triggers before_update_after_submit → status = "Unsigned") ---
+    doc.flags.ignore_validate_update_after_submit = True
+    doc.save()
