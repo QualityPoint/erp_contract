@@ -116,6 +116,8 @@ ERP Contract Terms Template,قالب شروط العقد,
 Contract Contact Template,قالب جهة اتصال العقد,
 Start Date,تاريخ البدء,
 End Date,تاريخ الانتهاء,
-
-
-
+Payments,المدفوعات,
+Renewals,التجديدات,
+Approvals,الموافقات,
+Apply Hierarchical Approvals,تطبيق الموافقات الهرمية,
+Date of contract conclusion,تاريخ إبرام العقد,

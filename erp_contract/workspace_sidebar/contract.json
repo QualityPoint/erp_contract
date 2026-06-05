@@ -33,6 +33,30 @@
   {
    "child": 0,
    "collapsible": 1,
+   "icon": "sell",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Sales Order",
+   "link_to": "Sales Order",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 1,
+   "icon": "money-coins-1",
+   "indent": 1,
+   "keep_closed": 0,
+   "label": "Payment Entry",
+   "link_to": "Payment Entry",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 1,
    "icon": "tool",
    "indent": 1,
    "keep_closed": 0,
@@ -106,9 +130,21 @@
    "link_type": "DocType",
    "show_arrow": 0,
    "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 1,
+   "icon": "settings",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Contract Settings",
+   "link_to": "Contract Settings",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
   }
  ],
- "modified": "2026-06-04 19:21:02.243801",
+ "modified": "2026-06-05 18:41:37.768821",
  "modified_by": "Administrator",
  "module": "ERP Contract",
  "name": "Contract",
