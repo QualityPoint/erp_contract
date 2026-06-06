@@ -87,10 +87,10 @@ ERPNext supports two common ways to record payment against a Sales Order:
 | Customer pays via bank / cash | Payment Entry (through Make Payment button) |
 | Manual adjustment, write-off, or multi-leg accounting | Journal Entry |
 
-Both write to `Payment Ledger Entry` when submitted. The PLE row has
-`against_voucher_type = "Sales Order"` and `against_voucher_no = "<SO name>"` in both
-cases. This is why the aggregation layer (which queries PLE) naturally covers JE payments
-without any extra logic — as long as the correct SO names are extracted first.
+Both write to the `Advance Payment Ledger Entry` against the order when submitted — a row
+with `against_voucher_type = "Sales Order"` and `against_voucher_no = "<SO name>"` in both
+cases. This is why the aggregation layer (which reads that ledger) naturally covers JE
+payments without any extra logic — as long as the correct SO names are extracted first.
 
 ---
 
@@ -111,10 +111,10 @@ file would need to change for two unrelated reasons.
 
 ## Cancellation Behaviour
 
-Identical to the PE handler. When a JE is cancelled, its PLE rows get `delinked = 1`.
-The same handler fires on `on_cancel`, passes the same SO names to
+Identical to the PE handler. When a JE is cancelled, its advance-ledger rows get
+`delinked = 1`. The same handler fires on `on_cancel`, passes the same SO names to
 `recalculate_contract_payment()`, and the totals are recalculated from the remaining
-non-delinked PLE entries.
+non-delinked advance-ledger entries.
 
 ---
 

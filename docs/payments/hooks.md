@@ -49,12 +49,12 @@ The same resolution applies to `on_cancel` and to the Journal Entry paths.
 Both `on_submit` and `on_cancel` point to the **same function** in each case. This is
 intentional:
 
-- On submit: PLE rows are created with `delinked = 0` → `total_paid` increases.
-- On cancel: PLE rows for the cancelled voucher are set to `delinked = 1` →
+- On submit: advance-ledger rows are created with `delinked = 0` → `total_paid` increases.
+- On cancel: advance-ledger rows for the cancelled voucher are set to `delinked = 1` →
   `recalculate_contract_payment()` re-aggregates using only the remaining active rows →
   `total_paid` decreases (or reaches zero).
 
-The handler does not need to know whether the event was a submit or cancel — the PLE state
+The handler does not need to know whether the event was a submit or cancel — the ledger state
 already reflects the correct net amount at the time of the call.
 
 ---
@@ -100,7 +100,7 @@ contract payment status:
 
 - No import of any handler module.
 - No conditional logic.
-- No knowledge of PLE, SO names, payment fields, or installment rows.
+- No knowledge of the payment ledger, SO names, payment fields, or installment rows.
 
 A change to a handler function signature, a move to a different module, or the addition of
 a new handler or scheduler task — all require updating `hooks.py`. But no change to the

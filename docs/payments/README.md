@@ -24,13 +24,13 @@ ERPContract.on_submit()
         ▼
 utils/payment.py :: recalculate_contract_payment({self.sales_order})
         │
-        ├─ Queries Payment Ledger Entry (PLE) for total paid against the SO
+        ├─ Reads Advance Payment Ledger Entry total against the SO (= SO.advance_paid)
         │
         └─ Writes per_payment + payment_status on this contract
 ```
 
 **Why this path is necessary**: Payments against the linked Sales Order may have been
-recorded before the contract was submitted. Without this path those PLE entries would
+recorded before the contract was submitted. Without this path those advance entries would
 never trigger a `doc_event`, and the contract would show `Unpaid / 0%` indefinitely.
 
 ### Path B — Payment recorded after contract is submitted
@@ -39,7 +39,7 @@ never trigger a `doc_event`, and the contract would show `Unpaid / 0%` indefinit
 User submits / cancels a Payment Entry or Journal Entry
         │
         ▼
-Frappe GL layer writes / delinks a Payment Ledger Entry (PLE) row
+Frappe GL layer writes / delinks the advance ledger row against the SO
         │
         ▼
 doc_events (hooks.py) fires the matching override handler
@@ -53,7 +53,7 @@ doc_events (hooks.py) fires the matching override handler
         ▼ (both converge here)
 utils/payment.py :: recalculate_contract_payment(sales_orders)
         │
-        ├─ Queries Payment Ledger Entry (PLE) for total paid against each SO
+        ├─ Reads Advance Payment Ledger Entry total against each SO (= SO.advance_paid)
         │
         └─ Writes per_payment + payment_status on every matching ERP Contract
 ```
@@ -128,9 +128,10 @@ The entire payment tracking chain rests on a single field:
 ERP Contract.sales_order  →  Sales Order.name
 ```
 
-The `Payment Ledger Entry` records payments **against a Sales Order**, so an ERP Contract
-must have its `sales_order` field populated for payment tracking to work. Contracts without
-a linked Sales Order are never touched by the payment recalculation.
+The `Advance Payment Ledger Entry` records payments **against a Sales Order**, so an ERP
+Contract must have its `sales_order` field populated for payment tracking to work. Contracts
+without a linked Sales Order are never touched by the payment recalculation. Sales Invoices
+are deliberately **not** consulted — the Sales Order is the only reliable anchor.
 
 ---
 
@@ -142,8 +143,9 @@ a linked Sales Order are never touched by the payment recalculation.
 | [architecture.md](architecture.md) | Layer breakdown and separation of concerns |
 | [payment_entry_handler.md](payment_entry_handler.md) | `overrides/payment_entry.py` explained |
 | [journal_entry_handler.md](journal_entry_handler.md) | `overrides/journal_entry.py` explained |
-| [aggregation.md](aggregation.md) | Core PLE aggregation algorithm in `utils/payment.py` |
+| [aggregation.md](aggregation.md) | Core advance-ledger aggregation algorithm in `utils/payment.py` |
 | [hooks.md](hooks.md) | How `doc_events` in `hooks.py` wires everything together |
 | [on_submit_sync.md](on_submit_sync.md) | Why and how `on_submit` syncs pre-existing payments |
 | [installment_payment.md](installment_payment.md) | Waterfall distribution algorithm for installment rows |
 | [overdue_scheduler.md](overdue_scheduler.md) | Daily scheduler that marks installment rows as Overdue |
+| [create_payment_buttons.md](create_payment_buttons.md) | `Create → Payment` / `Payment Request` buttons (made against the linked Sales Order) |

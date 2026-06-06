@@ -33,7 +33,7 @@ Groups below reflect separation of concern.
 | `start_date` | `dialog.start_date` | ✗ |
 | `end_date` | `dialog.end_date` | ✗ |
 | `duration_uom` | `dialog.duration_uom` | ✗ |
-| `contract_duration` | `dialog.contract_duration` | ✗ |
+| `contract_duration` | **recomputed server-side** via `calculate_contract_duration(start_date, end_date, duration_uom)` — the dialog value is ignored | ✗ |
 
 ## 2. Signature
 
@@ -47,17 +47,28 @@ Groups below reflect separation of concern.
 | `signee_customer` | `""` | ✗ |
 | `signed_by_customer` | `""` | ✓ |
 
-## 3. Sales Order & Financial
+## 3. Sales Order & Financial (re-populated, **not** reset)
 
-| Field | Reset Value | allow_on_submit |
+The new period's Sales Order is chosen in the dialog and validated server-side
+(see [dialog.md](dialog.md)). The financial fields are then fetched from it via
+`get_reference_document_price_details("Sales Order", sales_order)` — the same
+helper the main form uses. They are written in the single renewal `save()` (the
+`ignore_validate_update_after_submit` flag permits writing these non-`allow_on_submit`
+fields). The previous Sales Order is preserved in `contract_records` (see
+[archive.md](archive.md)).
+
+| Field | New Value | allow_on_submit |
 |---|---|---|
-| `sales_order` | `""` | ✗ |
-| `currency` | `""` | ✗ |
-| `net_total` | `0` | ✗ |
-| `net_total_in_words` | `""` | ✗ |
-| `total_taxes_and_charges` | `0` | ✗ |
+| `sales_order` | `dialog.sales_order` (validated new SO) | ✗ |
+| `currency` | `price.currency` | ✗ |
+| `net_total` | `price.net_total` | ✗ |
+| `net_total_in_words` | `price.net_total_in_words` | ✗ |
+| `total_taxes_and_charges` | `price.total_taxes_and_charges` | ✗ |
 
 ## 4. Advance Payment
+
+> Reset on renewal, then **rebuilt afterwards** via the **Create → Advance Payment**
+> button. See [renewal_payment_setup.md](renewal_payment_setup.md).
 
 | Field | Reset Value | allow_on_submit |
 |---|---|---|
@@ -66,6 +77,9 @@ Groups below reflect separation of concern.
 | `advance_amount_in_words` | `""` | ✗ |
 
 ## 5. Installment Payment
+
+> Reset on renewal, then **rebuilt afterwards** via the **Create → Installment Payment**
+> button. See [renewal_payment_setup.md](renewal_payment_setup.md).
 
 | Field | Reset Value | allow_on_submit |
 |---|---|---|

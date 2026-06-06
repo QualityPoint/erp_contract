@@ -40,8 +40,8 @@ only `hooks.py` needs updating.
 │  utils/payment.py :: recalculate_contract_payment()        │
 │                                                             │
 │  Concern:                                                   │
-│  Query Payment Ledger Entry (PLE) for total paid against   │
-│  each SO; compute per_payment + payment_status;            │
+│  Read Advance Payment Ledger Entry total against each SO   │
+│  (= SO.advance_paid); compute per_payment + payment_status;│
 │  write to ERP Contract via frappe.db.set_value()           │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -82,7 +82,7 @@ only `hooks.py` needs updating.
 - **Layer**: Core payment logic + installment distribution + overdue scheduler
 - **Contains**: `recalculate_contract_payment`, `recalculate_installment_payment`, `update_overdue_installments`, `get_advance_payment_entries`, `get_payment_entry_details`, `create_payment_schedule`
 - **Imports from**: `contract.format_currency_in_words`
-- **Change trigger**: PLE aggregation changes, waterfall algorithm changes, overdue rules change.
+- **Change trigger**: advance-ledger aggregation changes, waterfall algorithm changes, overdue rules change.
 
 ---
 
@@ -92,7 +92,7 @@ only `hooks.py` needs updating.
 - **Responsibility**: When a contract is submitted and `sales_order` is set, call
   `recalculate_contract_payment` with `{self.sales_order}` to sync any payments that were
   already recorded against the SO before this contract existed.  
-- **Rule**: No aggregation logic. No PLE queries. One guard check + one delegation call.  
+- **Rule**: No aggregation logic. No ledger queries. One guard check + one delegation call.  
 - **Change trigger**: New conditions are added to the guard.
 
 ---
@@ -135,7 +135,7 @@ only `hooks.py` needs updating.
   bucket and distribute the remaining `installment_pool` across `Installment Schedule` rows
   in chronological order (waterfall). Writes `paid_amount`, `installment_per_payment`, and
   `installment_payment_status` per row.  
-- **Rule**: Does not query PLE directly when called from `recalculate_contract_payment()`
+- **Rule**: Does not query the ledger directly when called from `recalculate_contract_payment()`
   (values are passed in). Sets `Overdue` in real-time when absorbed amount is zero or
   partial and `due_date < today` — the daily scheduler is only a safety net.  
 - **Change trigger**: Distribution strategy changes, new fields added to installment rows.
@@ -149,7 +149,7 @@ only `hooks.py` needs updating.
   today` and status is `Unpaid` or `Partially Paid`. Catches rows that have never had a
   payment event fire (e.g. a contract where no payment has ever been made).  
 - **Rule**: Only touches `installment_payment_status`. Does not touch `paid_amount` or
-  `installment_per_payment`. Does not interact with PLE.  
+  `installment_per_payment`. Does not interact with the payment ledger.  
 - **Change trigger**: Overdue definition changes (e.g. grace days before marking overdue).
 
 ---
@@ -157,12 +157,12 @@ only `hooks.py` needs updating.
 ### `utils/payment.py :: recalculate_contract_payment()`
 
 - **Layer**: Core business logic — aggregation  
-- **Responsibility**: Given a set of Sales Order names, query `Payment Ledger Entry` to
-  compute the total amount paid against each SO, then update `per_payment` and
+- **Responsibility**: Given a set of Sales Order names, read the `Advance Payment Ledger
+  Entry` total against each SO (= `SO.advance_paid`), then update `per_payment` and
   `payment_status` on every linked submitted ERP Contract.  
 - **Rule**: No knowledge of which voucher type triggered the call. Only receives SO names.  
-- **Change trigger**: PLE schema changes, payment status rules change, or `per_payment`
-  formula changes.
+- **Change trigger**: advance-ledger schema changes, payment status rules change, or
+  `per_payment` formula changes.
 
 ---
 
@@ -181,19 +181,25 @@ testable and independently changeable.
 
 ---
 
-## Why Payment Ledger Entry (PLE)?
+## Why Advance Payment Ledger Entry (against the Sales Order)?
 
-PLE is the GL-layer record written by **all** voucher types (PE, JE, reconciliation
-write-offs). Querying it directly means:
+In ERPNext v15+, any payment (PE or JE) that references a Sales Order is recorded in the
+`Advance Payment Ledger Entry` against that order — the same figure ERPNext exposes as
+`Sales Order.advance_paid`. Reading it directly means:
 
-- One query covers PE and JE paid amounts together — no double-counting.
-- Cancellation is automatic: PLE rows for cancelled entries have `delinked = 1`,
+- One query covers PE and JE amounts together — no double-counting, advance/final-agnostic.
+- Cancellation is automatic: entries for cancelled vouchers have `delinked = 1`,
   excluded by the `delinked = 0` filter.
 - Exactly mirrors ERPNext's own `calculate_total_advance_from_ledger()` +
   `set_total_advance_paid()` used on Sales Order — the most battle-tested pattern available.
 
-The alternative — querying `Payment Entry Reference` directly — would miss JE payments
-entirely and require manual cancellation handling.
+> **Not `Payment Ledger Entry`.** PLE keys to whatever the payment *settles* — a Sales
+> Invoice or the Payment Entry itself — never to the Sales Order in v15+, so a PLE query on
+> `against_voucher_type = "Sales Order"` returns zero for orders. (The original design used
+> PLE; that only worked on pre-v15 ERPNext, where order advances posted against the order.)
+>
+> Sales Invoices are deliberately not consulted — an invoice may or may not be raised/paid,
+> so the order is the only reliable anchor.
 
 ---
 
@@ -201,9 +207,9 @@ entirely and require manual cancellation handling.
 
 | Aspect | ERPNext Sales Order | ERP Contract |
 |---|---|---|
-| Source of truth | Payment Ledger Entry | Payment Ledger Entry |
+| Source of truth | Advance Payment Ledger Entry | Advance Payment Ledger Entry |
 | Trigger mechanism | `advance_payment_receivable_doctypes` scheduler | `doc_events` on PE / JE |
 | Aggregation function | `calculate_total_advance_from_ledger()` | `recalculate_contract_payment()` |
 | Write strategy | `frappe.db.set_value` | `frappe.db.set_value` |
 | Cancel handling | `delinked = 0` filter | `delinked = 0` filter |
-| JE coverage | ✓ (via GL entries) | ✓ (via JE handler + PLE) |
+| JE coverage | ✓ (via GL entries) | ✓ (via JE handler + advance ledger) |

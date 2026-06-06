@@ -3,6 +3,7 @@
 
 import frappe
 from frappe import _
+from frappe.query_builder.functions import Abs, Sum
 from erp_contract.utils.contract import format_currency_in_words
 
 
@@ -53,24 +54,49 @@ def update_overdue_installments():
         frappe.db.commit()
 
 
+def _total_paid_against_so(so_name) -> float:
+    """
+    Total amount received against a Sales Order.
+
+    The Sales Order is the *only* reference the contract tracks payment through.
+    Any payment that references the SO (whether the user calls it an advance or a
+    final payment) is recorded by ERPNext in the Advance Payment Ledger Entry
+    against the order — this is the same figure ERPNext surfaces as
+    Sales Order.advance_paid.
+
+    delinked=0 excludes cancelled/reversed entries; Abs(Sum(...)) normalises the
+    ledger sign.  Sales Invoices are intentionally NOT consulted: an invoice may
+    or may not be paid, so the order is the reliable anchor.
+    """
+    from frappe.utils import flt
+
+    APLE = frappe.qb.DocType("Advance Payment Ledger Entry")
+    result = (
+        frappe.qb.from_(APLE)
+        .select(Abs(Sum(APLE.amount)).as_("total_paid"))
+        .where(APLE.against_voucher_type == "Sales Order")
+        .where(APLE.against_voucher_no == so_name)
+        .where(APLE.delinked == 0)
+    ).run(as_dict=True)
+
+    return flt(result[0].total_paid if result else 0)
+
+
 def recalculate_contract_payment(sales_orders):
     """
     Shared aggregation for payment override handlers (PE and JE) and on_submit.
 
     For every submitted ERP Contract linked to one of the given Sales Orders:
-      1. Queries Payment Ledger Entry (PLE) for the total paid against the SO.
+      1. Reads the total paid against the SO from the Advance Payment Ledger Entry.
       2. Updates contract-level per_payment and payment_status.
-      3. If apply_installment_payment is set, additionally distributes the net
-         installment payment across payment_schedule rows via
-         recalculate_installment_payment().
+      3. If apply_installment_payment is set, additionally distributes the
+         payment across payment_schedule rows via recalculate_installment_payment().
 
-    Source of truth: PLE (GL layer) — mirrors ERPNext's set_total_advance_paid pattern.
-    delinked=0 excludes cancelled/reversed entries automatically.
-    Abs(Sum(...)) normalises sign differences between PE and JE entries.
+    Source of truth: Advance Payment Ledger Entry against the Sales Order
+    (== Sales Order.advance_paid). The contract anchors only the SO and does not
+    distinguish advance vs final payment — see _total_paid_against_so().
     """
     from frappe.utils import flt
-
-    PLE = frappe.qb.DocType("Payment Ledger Entry")
 
     for so_name in sales_orders:
         contracts = frappe.get_all(
@@ -82,19 +108,7 @@ def recalculate_contract_payment(sales_orders):
         if not contracts:
             continue
 
-        result = (
-            frappe.qb.from_(PLE)
-            .select(
-                frappe.qb.fn.Abs(
-                    frappe.qb.fn.Sum(PLE.amount_in_account_currency)
-                ).as_("total_paid")
-            )
-            .where(PLE.against_voucher_type == "Sales Order")
-            .where(PLE.against_voucher_no == so_name)
-            .where(PLE.delinked == 0)
-        ).run(as_dict=True)
-
-        total_paid = flt(result[0].total_paid if result else 0)
+        total_paid = _total_paid_against_so(so_name)
 
         for contract in contracts:
             net_total = flt(contract.net_total)
@@ -130,9 +144,10 @@ def recalculate_installment_payment(contract_name, total_paid=None, advance_amou
     Distribute the net installment payment across Installment Schedule rows using a
     chronological waterfall: earliest due_date rows are filled first.
 
-    The advance payment is already captured in total_paid (PLE includes it) but
-    belongs to a separate financial bucket — it must be subtracted before distributing
-    across installment rows, which only sum to (net_total - advance_amount).
+    The advance payment is already captured in total_paid (the SO advance ledger
+    includes it) but belongs to a separate financial bucket — it must be subtracted
+    before distributing across installment rows, which only sum to
+    (net_total - advance_amount).
 
         installment_pool = max(0, total_paid - advance_amount)
 
@@ -149,8 +164,8 @@ def recalculate_installment_payment(contract_name, total_paid=None, advance_amou
         installment_payment_status — Unpaid / Overdue / Partially Paid / Paid
 
     If total_paid / advance_amount are not supplied (standalone call), the function
-    re-queries PLE and reads advance_amount from the contract document. Both must
-    be supplied together or not at all.
+    re-reads the SO advance ledger and advance_amount from the contract document.
+    Both must be supplied together or not at all.
     """
     from frappe.utils import flt, getdate, today as get_today
 
@@ -168,23 +183,11 @@ def recalculate_installment_payment(contract_name, total_paid=None, advance_amou
             advance_amount = flt(contract_doc.advance_amount)
 
         if total_paid is None:
-            # sales_order is required only for the PLE query; guard it here,
+            # sales_order is required only for the ledger query; guard it here,
             # not at the outer level, so a supplied total_paid is never discarded.
             if not contract_doc.sales_order:
                 return
-            PLE = frappe.qb.DocType("Payment Ledger Entry")
-            result = (
-                frappe.qb.from_(PLE)
-                .select(
-                    frappe.qb.fn.Abs(
-                        frappe.qb.fn.Sum(PLE.amount_in_account_currency)
-                    ).as_("total_paid")
-                )
-                .where(PLE.against_voucher_type == "Sales Order")
-                .where(PLE.against_voucher_no == contract_doc.sales_order)
-                .where(PLE.delinked == 0)
-            ).run(as_dict=True)
-            total_paid = flt(result[0].total_paid if result else 0)
+            total_paid = _total_paid_against_so(contract_doc.sales_order)
 
     installment_pool = max(0.0, flt(total_paid) - flt(advance_amount))
 
@@ -200,13 +203,15 @@ def recalculate_installment_payment(contract_name, total_paid=None, advance_amou
 
     for row in rows:
         installment_amount = flt(row.installment_amount)
-        due_date = getdate(row.installment_due_date) if row.installment_due_date else None
+        due_date = getdate(
+            row.installment_due_date) if row.installment_due_date else None
         is_past_due = bool(due_date and due_date < today_date)
 
         absorbed = min(remaining, installment_amount)
         remaining = max(0.0, remaining - absorbed)
 
-        per = flt(absorbed / installment_amount * 100, 2) if installment_amount else 0
+        per = flt(absorbed / installment_amount *
+                  100, 2) if installment_amount else 0
 
         if per >= 100:
             status = "Paid"
@@ -300,10 +305,12 @@ def create_payment_schedule(due_start_date, installment_count, payment_periodici
     if amount_due <= 0:
         frappe.throw(_("Amount Due must be greater than zero"))
 
-    periodicity_months = {"Monthly": 1, "Quarterly": 3, "Half-Yearly": 6, "Yearly": 12}
+    periodicity_months = {"Monthly": 1,
+                          "Quarterly": 3, "Half-Yearly": 6, "Yearly": 12}
     months = periodicity_months.get(payment_periodicity)
     if not months:
-        frappe.throw(_("Invalid Payment Periodicity: {0}").format(payment_periodicity))
+        frappe.throw(_("Invalid Payment Periodicity: {0}").format(
+            payment_periodicity))
 
     base_amount = flt(amount_due / installment_count, 2)
     last_amount = flt(amount_due - base_amount * (installment_count - 1), 2)
@@ -319,3 +326,149 @@ def create_payment_schedule(due_start_date, installment_count, payment_periodici
         })
 
     return schedule
+
+
+# ---------------------------------------------------------------------------
+# Post-renewal payment setup
+# (see docs/contract_renewal/renewal_payment_setup.md)
+# ---------------------------------------------------------------------------
+
+def _assert_renewal_payment_editable(doc) -> None:
+    """Guard shared by the post-renewal 'Create' payment methods."""
+    if doc.docstatus != 1:
+        frappe.throw(_("Only submitted contracts can be modified."))
+    if not doc.is_renewed:
+        frappe.throw(_("Payment setup is only available on renewed contracts."))
+
+
+@frappe.whitelist()
+def set_renewal_advance(contract_name, advance_payment_entry):
+    """
+    Link an existing advance Payment Entry to a renewed contract's new period.
+
+    Allowed only before an installment schedule is built (advance must precede
+    installments — see renewal_payment_setup.md). Writes through
+    ignore_validate_update_after_submit, then resyncs payment progress.
+    """
+    from frappe.utils import flt
+
+    doc = frappe.get_doc("ERP Contract", contract_name)
+    frappe.has_permission("ERP Contract", "write", doc, throw=True)
+
+    _assert_renewal_payment_editable(doc)
+    if doc.advance_payment_entry:
+        frappe.throw(_("An advance payment is already linked to this contract."))
+    if doc.apply_installment_payment and doc.payment_schedule:
+        frappe.throw(
+            _("Installments are already set up; the advance can no longer be changed.")
+        )
+    if not advance_payment_entry:
+        frappe.throw(_("An advance Payment Entry is required."))
+
+    pe = frappe.db.get_value(
+        "Payment Entry", advance_payment_entry,
+        ["docstatus", "payment_type", "company", "party",
+         "paid_amount", "paid_to_account_currency"],
+        as_dict=True,
+    )
+    if not pe:
+        frappe.throw(_("Payment Entry {0} does not exist.").format(frappe.bold(advance_payment_entry)))
+    if pe.docstatus != 1:
+        frappe.throw(_("Payment Entry {0} is not submitted.").format(frappe.bold(advance_payment_entry)))
+    if pe.payment_type != "Receive":
+        frappe.throw(_("Payment Entry {0} is not a receive payment.").format(frappe.bold(advance_payment_entry)))
+    if pe.company != doc.company:
+        frappe.throw(_("Payment Entry {0} does not belong to Company {1}.").format(
+            frappe.bold(advance_payment_entry), frappe.bold(doc.company)))
+    if pe.party != doc.customer:
+        frappe.throw(_("Payment Entry {0} does not belong to Customer {1}.").format(
+            frappe.bold(advance_payment_entry), frappe.bold(doc.customer)))
+
+    if not frappe.db.exists(
+        "Payment Entry Reference",
+        {"parent": advance_payment_entry, "reference_doctype": "Sales Order",
+         "reference_name": doc.sales_order},
+    ):
+        frappe.throw(_("Payment Entry {0} does not reference Sales Order {1}.").format(
+            frappe.bold(advance_payment_entry), frappe.bold(doc.sales_order)))
+
+    taken_by = frappe.db.get_value(
+        "ERP Contract",
+        {"advance_payment_entry": advance_payment_entry, "docstatus": 1,
+         "name": ("!=", doc.name)},
+        "name",
+    )
+    if taken_by:
+        frappe.throw(_("Payment Entry {0} is already the advance of Contract {1}.").format(
+            frappe.bold(advance_payment_entry),
+            frappe.utils.get_link_to_form("ERP Contract", taken_by)))
+
+    advance_amount = flt(pe.paid_amount)
+    net_total = flt(doc.net_total)
+    if advance_amount > net_total:
+        frappe.throw(_("Advance amount ({0}) cannot exceed the contract net total ({1}).").format(
+            advance_amount, net_total))
+
+    doc.advance_payment_entry = advance_payment_entry
+    doc.advance_amount = advance_amount
+    doc.advance_amount_in_words = format_currency_in_words(advance_amount, pe.paid_to_account_currency)
+    doc.amount_due = max(0.0, flt(net_total - advance_amount, 2))
+
+    doc.flags.ignore_validate_update_after_submit = True
+    doc.save()
+
+    if doc.sales_order:
+        recalculate_contract_payment({doc.sales_order})
+
+    return {"advance_amount": advance_amount, "amount_due": doc.amount_due}
+
+
+@frappe.whitelist()
+def set_renewal_installments(contract_name, due_start_date, payment_periodicity, installment_count):
+    """
+    Build the installment schedule for a renewed contract's new period.
+
+    amount_due is derived from (net_total - advance_amount); the schedule rows
+    sum to amount_due by construction. Writes through
+    ignore_validate_update_after_submit, then resyncs payment progress (which
+    runs the installment waterfall).
+    """
+    from frappe.utils import flt
+
+    doc = frappe.get_doc("ERP Contract", contract_name)
+    frappe.has_permission("ERP Contract", "write", doc, throw=True)
+
+    _assert_renewal_payment_editable(doc)
+    if doc.apply_installment_payment:
+        frappe.throw(_("An installment schedule already exists for this contract."))
+
+    amount_due = flt(flt(doc.net_total) - flt(doc.advance_amount), 2)
+    if amount_due <= 0:
+        frappe.throw(
+            _("Amount Due ({0}) must be greater than zero to create an installment schedule.").format(amount_due)
+        )
+
+    schedule = create_payment_schedule(
+        due_start_date=due_start_date,
+        installment_count=installment_count,
+        payment_periodicity=payment_periodicity,
+        amount_due=amount_due,
+        currency=doc.currency,
+    )
+
+    doc.apply_installment_payment = 1
+    doc.due_start_date = due_start_date
+    doc.payment_periodicity = payment_periodicity
+    doc.installment_count = int(installment_count)
+    doc.amount_due = amount_due
+    doc.payment_schedule = []
+    for row in schedule:
+        doc.append("payment_schedule", row)
+
+    doc.flags.ignore_validate_update_after_submit = True
+    doc.save()
+
+    if doc.sales_order:
+        recalculate_contract_payment({doc.sales_order})
+
+    return {"amount_due": amount_due, "rows": len(schedule)}

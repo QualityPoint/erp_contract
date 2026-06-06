@@ -262,24 +262,33 @@ class ERPContract(Document):
 
 
 @frappe.whitelist()
-def renew_contract(contract_name, contract_date, start_date, end_date, duration_uom, contract_duration):
+def renew_contract(contract_name, contract_date, start_date, end_date, duration_uom, sales_order):
     """
     Renew a submitted Duration-Based ERP Contract in-place.
 
     Steps:
-      1. Guard: category, docstatus, status, grace window, new start_date >= current end_date.
-      2. Append current period to contract_records (archive).
-      3. Apply new period values + reset all financial/signature fields.
-      4. save() via ignore_validate_update_after_submit flag.
+      1. Guard: category, docstatus, status, grace window, new start_date > current end_date.
+      2. Validate the new Sales Order (unused by this or any other submitted contract,
+         same company/customer, submitted).
+      3. Append the current period — including its Sales Order — to contract_records (archive).
+      4. Apply new period values, attach the new Sales Order and its financials,
+         reset signature/advance/installment fields.
+      5. save() via ignore_validate_update_after_submit flag.
+
+    contract_duration is recomputed server-side from the dates; the client value
+    is never trusted.
     """
     from dateutil.relativedelta import relativedelta
-    from frappe.utils import getdate, nowdate, add_days, flt
+    from frappe.utils import getdate, nowdate, add_days
+    from erp_contract.utils.contract import calculate_contract_duration
+    from erp_contract.utils.party import get_reference_document_price_details
 
     doc = frappe.get_doc("ERP Contract", contract_name)
 
     # --- Permission check ---
     if not frappe.has_permission("ERP Contract", "write", doc=doc):
-        frappe.throw(_("You do not have permission to renew this contract."), frappe.PermissionError)
+        frappe.throw(
+            _("You do not have permission to renew this contract."), frappe.PermissionError)
 
     # --- Input validation ---
     if duration_uom not in ("Day", "Month", "Year"):
@@ -291,11 +300,14 @@ def renew_contract(contract_name, contract_date, start_date, end_date, duration_
     if doc.contract_category != "Duration-Based":
         frappe.throw(_("Only Duration-Based contracts can be renewed."))
     if doc.status not in ("Active", "Inactive"):
-        frappe.throw(_("Contract cannot be renewed in its current status ({0}).").format(doc.status))
+        frappe.throw(
+            _("Contract cannot be renewed in its current status ({0}).").format(doc.status))
 
     # Grace window guard (server-side mirror of client check)
-    grace_period = frappe.db.get_single_value("Contract Settings", "renewal_grace_period") or 1
-    grace_uom = frappe.db.get_single_value("Contract Settings", "grace_period_uom") or "Month"
+    grace_period = frappe.db.get_single_value(
+        "Contract Settings", "renewal_grace_period") or 1
+    grace_uom = frappe.db.get_single_value(
+        "Contract Settings", "grace_period_uom") or "Month"
     today = getdate(nowdate())
     current_end = getdate(doc.end_date)
     window_start = (
@@ -308,14 +320,60 @@ def renew_contract(contract_name, contract_date, start_date, end_date, duration_
             frappe.format(window_start, {"fieldtype": "Date"})
         ))
 
-    # New start must not be before current end_date (no overlapping periods)
-    if getdate(start_date) < current_end:
-        frappe.throw(_("New Start Date ({0}) cannot be before the current End Date ({1}).").format(
+    # New start must be strictly after the current end_date (no overlap, no same-day handover)
+    if getdate(start_date) <= current_end:
+        frappe.throw(_("New Start Date ({0}) must be after the current End Date ({1}).").format(
             frappe.format(getdate(start_date), {"fieldtype": "Date"}),
             frappe.format(current_end, {"fieldtype": "Date"}),
         ))
 
-    # --- Archive current period ---
+    # Recompute duration server-side (also enforces end_date >= start_date)
+    new_duration = calculate_contract_duration(start_date, end_date, duration_uom)
+
+    # --- Validate the new Sales Order ---
+    if not sales_order:
+        frappe.throw(_("A new Sales Order is required to renew the contract."))
+
+    used_sales_orders = {doc.sales_order} | {
+        r.sales_order for r in doc.contract_records if r.sales_order
+    }
+    if sales_order in used_sales_orders:
+        frappe.throw(
+            _("Sales Order {0} has already been used by this contract. "
+              "Select a Sales Order for the new period.").format(frappe.bold(sales_order))
+        )
+
+    so = frappe.db.get_value(
+        "Sales Order", sales_order,
+        ["company", "customer", "docstatus"], as_dict=True,
+    )
+    if not so:
+        frappe.throw(_("Sales Order {0} does not exist.").format(frappe.bold(sales_order)))
+    if so.docstatus != 1:
+        frappe.throw(_("Sales Order {0} is not submitted.").format(frappe.bold(sales_order)))
+    if so.company != doc.company:
+        frappe.throw(_("Sales Order {0} does not belong to Company {1}.").format(
+            frappe.bold(sales_order), frappe.bold(doc.company)))
+    if so.customer != doc.customer:
+        frappe.throw(_("Sales Order {0} does not belong to Customer {1}.").format(
+            frappe.bold(sales_order), frappe.bold(doc.customer)))
+
+    # Mirror validate_sales_order_uniqueness (skipped during update_after_submit):
+    # the SO must not be linked to any *other* submitted contract.
+    linked = frappe.db.get_value(
+        "ERP Contract",
+        {"sales_order": sales_order, "docstatus": 1, "name": ("!=", doc.name)},
+        "name",
+    )
+    if linked:
+        frappe.throw(
+            _("Sales Order {0} is already linked to submitted Contract {1}.").format(
+                frappe.bold(sales_order),
+                frappe.utils.get_link_to_form("ERP Contract", linked),
+            )
+        )
+
+    # --- Archive current period (including its Sales Order) ---
     doc.append("contract_records", {
         "contract_date": doc.contract_date,
         "start_date": doc.start_date,
@@ -323,6 +381,7 @@ def renew_contract(contract_name, contract_date, start_date, end_date, duration_
         "duration_uom": doc.duration_uom,
         "contract_duration": doc.contract_duration,
         "archived_contract": doc.signed_contract,
+        "sales_order": doc.sales_order,
     })
 
     # --- New period ---
@@ -330,7 +389,7 @@ def renew_contract(contract_name, contract_date, start_date, end_date, duration_
     doc.start_date = start_date
     doc.end_date = end_date
     doc.duration_uom = duration_uom
-    doc.contract_duration = flt(contract_duration, 2)
+    doc.contract_duration = new_duration
 
     # --- Signature reset ---
     doc.is_signed = 0
@@ -341,12 +400,13 @@ def renew_contract(contract_name, contract_date, start_date, end_date, duration_
     doc.signee_customer = ""
     doc.signed_by_customer = ""
 
-    # --- Sales Order & financial reset ---
-    doc.sales_order = ""
-    doc.currency = ""
-    doc.net_total = 0
-    doc.net_total_in_words = ""
-    doc.total_taxes_and_charges = 0
+    # --- New Sales Order & its financials ---
+    price = get_reference_document_price_details("Sales Order", sales_order)
+    doc.sales_order = sales_order
+    doc.currency = price["currency"]
+    doc.net_total = price["net_total"]
+    doc.net_total_in_words = price["net_total_in_words"]
+    doc.total_taxes_and_charges = price["total_taxes_and_charges"]
 
     # --- Advance payment reset ---
     doc.advance_payment_entry = ""

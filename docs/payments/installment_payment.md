@@ -17,8 +17,9 @@ Sales Order and distributes it across `Installment Schedule` rows in chronologic
 
 ## The Advance Deduction Problem
 
-The `Payment Ledger Entry` records **all** payments against the Sales Order, including the
-advance payment. But the `payment_schedule` child table rows only sum to:
+The advance ledger total against the Sales Order (`total_paid`) includes **all** payments
+against the order, including the advance payment. But the `payment_schedule` child table
+rows only sum to:
 
 ```
 net_total - advance_amount
@@ -122,13 +123,13 @@ Written via `frappe.db.set_value(..., update_modified=False)` — no timestamp n
 ## Standalone Call Support
 
 When called without `total_paid` / `advance_amount` (e.g. from a future "Recalculate
-Payments" button), the function re-queries PLE and reads `advance_amount` from the contract
-document itself:
+Payments" button), the function re-reads the SO advance ledger and `advance_amount` from the
+contract document itself:
 
 ```python
 recalculate_installment_payment("ERP-CON-2026-0001")
 # → fetches contract.sales_order, contract.advance_amount
-# → queries PLE for total_paid
+# → reads Advance Payment Ledger Entry total against the SO
 # → runs waterfall
 ```
 

@@ -77,17 +77,19 @@ natural place to read the paid amount. However:
    adjustments.
 2. **Double-counting risk**: Summing `allocated_amount` across PE references would miss JE
    payments entirely, causing the contract to show a lower payment percentage than reality.
-3. **PLE is the canonical source**: ERPNext's own Sales Order payment tracking ignores the
-   PE document's amounts and queries PLE instead — we follow the same discipline.
+3. **The advance ledger is the canonical source**: ERPNext's own Sales Order payment
+   tracking ignores the PE document's amounts and reads the `Advance Payment Ledger Entry`
+   against the order (= `SO.advance_paid`) instead — we follow the same discipline.
 
 ---
 
 ## Cancellation Behaviour
 
 On cancellation, the same function is called again. The `recalculate_contract_payment()`
-aggregation queries PLE with `delinked = 0` — when a PE is cancelled, its PLE rows are
-marked `delinked = 1` and automatically excluded. The recalculated total will be lower (or
-zero), and `payment_status` on the contract will update accordingly.
+aggregation reads the `Advance Payment Ledger Entry` with `delinked = 0` — when a PE is
+cancelled, its advance-ledger rows are marked `delinked = 1` and automatically excluded. The
+recalculated total will be lower (or zero), and `payment_status` on the contract will update
+accordingly.
 
 No special cancellation logic is needed in this handler.
 
