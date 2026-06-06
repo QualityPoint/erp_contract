@@ -658,35 +658,34 @@
    "options": "Contract Record"
   },
   {
+   "allow_on_submit": 1,
    "fieldname": "approvals_section",
    "fieldtype": "Section Break",
-   "label": "Approvals",
-   "allow_on_submit": 1
+   "label": "Approvals"
   },
   {
+   "depends_on": "eval:doc.approval_status!=\"Not Requested\"",
    "fieldname": "approvals",
    "fieldtype": "Table",
    "label": "Approvals",
    "no_copy": 1,
-   "options": "Contract Approver",
-   "allow_on_submit": 1
+   "options": "Contract Approver"
   },
   {
+   "default": "Not Requested",
    "fieldname": "approval_status",
    "fieldtype": "Select",
-   "label": "Approval Status",
-   "options": "Pending Approval\nApproved\nRejected",
-   "default": "Pending Approval",
-   "allow_on_submit": 1,
    "in_standard_filter": 1,
+   "label": "Approval Status",
    "no_copy": 1,
+   "options": "Not Requested\nPending Approval\nApproved\nRejected",
    "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-06-05 23:00:00.000000",
+ "modified": "2026-06-06 19:42:27.364021",
  "modified_by": "Administrator",
  "module": "ERP Contract",
  "name": "ERP Contract",

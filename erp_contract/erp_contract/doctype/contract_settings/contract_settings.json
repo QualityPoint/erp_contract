@@ -5,8 +5,12 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
+  "defaults_section",
+  "require_signed_contract_attachment",
+  "column_break_wgfp",
   "approvals_section",
   "apply_hierarchical_approvals",
+  "follow_via_email",
   "roles",
   "column_break_llru",
   "renewals_section",
@@ -60,13 +64,36 @@
    "label": "Roles",
    "mandatory_depends_on": "eval:doc.apply_hierarchical_approvals",
    "options": "Contract Approval Role"
+  },
+  {
+   "default": "0",
+   "depends_on": "eval:doc.apply_hierarchical_approvals",
+   "fieldname": "follow_via_email",
+   "fieldtype": "Check",
+   "label": "Follow via Email"
+  },
+  {
+   "fieldname": "defaults_section",
+   "fieldtype": "Section Break",
+   "label": "Defaults"
+  },
+  {
+   "default": "0",
+   "description": "Block marking a contract as Signed until its signed copy is attached.",
+   "fieldname": "require_signed_contract_attachment",
+   "fieldtype": "Check",
+   "label": "Require Signed Contract Attachment"
+  },
+  {
+   "fieldname": "column_break_wgfp",
+   "fieldtype": "Column Break"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-06-05 22:04:01.115636",
+ "modified": "2026-06-06 13:46:38.290418",
  "modified_by": "Administrator",
  "module": "ERP Contract",
  "name": "Contract Settings",

@@ -633,21 +633,52 @@ function add_approval_buttons(frm) {
             if (!r.message) return;
             const ctx = r.message;
 
-            // Show the approval chain as a small indicator regardless of role
+            // Progress indicator — always shown when the chain has been initiated.
+            // `user` is the actor who approved/rejected; it is blank until the
+            // step is acted on, so it is only appended once present.
             if (ctx.chain && ctx.chain.length) {
                 frm.dashboard.add_comment(
-                    ctx.chain.map(step =>
-                        `<b>${step.precedence}.</b> ${step.role} — ${step.user} `
-                        + `<span class="indicator ${_approval_color(step.approval_status)}">`
-                        + `${step.approval_status}</span>`
-                    ).join("<br>"),
+                    ctx.chain.map(step => {
+                        const actor = step.user ? ` — ${step.user}` : "";
+                        return `<b>${step.precedence}.</b> ${step.role}${actor} `
+                            + `<span class="indicator ${_approval_color(step.approval_status)}">`
+                            + `${step.approval_status}</span>`;
+                    }).join("<br>"),
                     "blue", true
                 );
             }
 
-            if (!ctx.is_approver) return;
-
             const GROUP = __("Approvals");
+
+            // "Request Approval" — shown to the contract owner before chain starts
+            // and again after rejection so they can re-initiate
+            if (ctx.can_request) {
+                frm.add_custom_button(__("Request Approval"), () => {
+                    frappe.confirm(
+                        __("Initiate the hierarchical approval chain for this contract?"),
+                        () => {
+                            frappe.call({
+                                method: "erp_contract.utils.approval.request_approval",
+                                args: { contract_name: frm.doc.name },
+                                freeze: true,
+                                freeze_message: __("Initiating approval chain…"),
+                                callback(r) {
+                                    if (!r.exc) {
+                                        frappe.show_alert({
+                                            message: __("Approval chain initiated. The first approver has been notified."),
+                                            indicator: "green",
+                                        });
+                                        frm.reload_doc();
+                                    }
+                                },
+                            });
+                        }
+                    );
+                }, GROUP).addClass("btn-primary");
+            }
+
+            // "Approve" / "Reject" — only for the active Pending approver
+            if (!ctx.is_approver) return;
 
             frm.add_custom_button(__("Approve"), () => {
                 open_signature_dialog(frm, (signature) => {
@@ -711,5 +742,10 @@ function open_signature_dialog(frm, callback) {
 }
 
 function _approval_color(status) {
-    return { "Approved": "green", "Rejected": "red", "Pending": "orange", "Waiting": "grey" }[status] || "grey";
+    return {
+        "Approved": "green",
+        "Rejected": "red",
+        "Pending": "orange",
+        "Waiting": "grey"
+    }[status] || "grey";
 }

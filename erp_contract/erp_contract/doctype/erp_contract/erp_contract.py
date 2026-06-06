@@ -8,7 +8,7 @@ from frappe.utils.jinja import validate_template
 from erp_contract.utils.contract_status import get_contract_status
 from erp_contract.utils.contract import calculate_contract_duration
 from erp_contract.utils.payment import recalculate_contract_payment
-from erp_contract.utils.approval import populate_approval_chain, assert_approval_chain_complete
+from erp_contract.utils.approval import assert_approval_chain_complete
 
 
 class ERPContract(Document):
@@ -45,17 +45,19 @@ class ERPContract(Document):
         self.validate_contract_terms()
         self.render_contract_terms()
         self.validate_installment_payment()
+        self.validate_signed_contract_attachment()
 
-    def on_submit(self):
+    def before_submit(self):
         assert_approval_chain_complete(self)
         self.update_contract_status()
+
+    def on_submit(self):
         if self.sales_order:
             recalculate_contract_payment({self.sales_order})
 
-    def before_submit(self):
-        populate_approval_chain(self)
-
     def before_update_after_submit(self):
+        # is_signed is allow_on_submit, so signing happens here (validate() does not run)
+        self.validate_signed_contract_attachment()
         # Preserve manual statuses — only recalculate auto-driven ones
         if self.status not in ("On Hold", "Completed", "Terminated"):
             self.update_contract_status()
@@ -69,6 +71,19 @@ class ERPContract(Document):
             contract_category=self.contract_category,
             start_date=self.start_date,
             end_date=self.end_date,
+        )
+
+    def validate_signed_contract_attachment(self):
+        """When Contract Settings → Require Signed Contract Attachment is on, the
+        signed contract file must be uploaded before the contract may be marked
+        as signed (is_signed)."""
+        if not self.is_signed or self.signed_contract:
+            return
+        if not frappe.db.get_single_value("Contract Settings", "require_signed_contract_attachment"):
+            return
+        frappe.throw(
+            _("Please attach the signed contract document before marking this contract as signed."),
+            title=_("Signed Contract Required"),
         )
 
     def validate_sales_order_uniqueness(self):
