@@ -371,11 +371,11 @@ function get_contract_terms(frm, template_name) {
         method: "erp_contract.utils.contract.get_terms_template",
         args: {
             template_name: template_name,
-            doc: frm.doc,
         },
         callback: function (r) {
             if (r && r.message) {
-                // Clear existing rows first
+                // Copy the raw template terms (Jinja intact) into the Code source
+                // fields. They are rendered for display only at print time.
                 frm.clear_table("contract_terms");
 
                 let data = r.message;
