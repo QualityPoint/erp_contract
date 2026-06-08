@@ -102,7 +102,8 @@ def recalculate_contract_payment(sales_orders):
         contracts = frappe.get_all(
             "ERP Contract",
             filters={"sales_order": so_name, "docstatus": 1},
-            fields=["name", "net_total", "advance_amount", "apply_installment_payment"],
+            fields=["name", "net_total", "advance_amount",
+                    "apply_installment_payment"],
         )
 
         if not contracts:
@@ -112,7 +113,8 @@ def recalculate_contract_payment(sales_orders):
 
         for contract in contracts:
             net_total = flt(contract.net_total)
-            per_payment = flt(total_paid / net_total * 100, 2) if net_total else 0
+            per_payment = flt(total_paid / net_total *
+                              100, 2) if net_total else 0
 
             if total_paid <= 0:
                 payment_status = "Unpaid"
@@ -291,6 +293,25 @@ def get_payment_entry_details(deposit_reference):
     }
 
 
+def installment_percents(amounts, amount_due):
+    """Each amount's share of ``amount_due`` as a percentage (2dp).
+
+    The last row absorbs the rounding drift so the percentages sum to exactly 100.
+    Returns zeros when ``amount_due`` is non-positive. Works for equal or
+    hand-edited (unequal) amounts — used both when generating a schedule and when
+    revalidating a manually edited one on save.
+    """
+    from frappe.utils import flt
+
+    amount_due = flt(amount_due)
+    if amount_due <= 0 or not amounts:
+        return [0.0] * len(amounts)
+
+    percents = [flt(flt(a) / amount_due * 100, 2) for a in amounts]
+    percents[-1] = flt(percents[-1] + 100 - sum(percents), 2)
+    return percents
+
+
 @frappe.whitelist()
 def create_payment_schedule(due_start_date, installment_count, payment_periodicity, amount_due, currency):
     """Generate installment schedule rows from the given parameters."""
@@ -306,7 +327,9 @@ def create_payment_schedule(due_start_date, installment_count, payment_periodici
         frappe.throw(_("Amount Due must be greater than zero"))
 
     periodicity_months = {"Monthly": 1,
-                          "Quarterly": 3, "Half-Yearly": 6, "Yearly": 12}
+                          "Quarterly": 3,
+                          "Half-Yearly": 6,
+                          "Yearly": 12}
     months = periodicity_months.get(payment_periodicity)
     if not months:
         frappe.throw(_("Invalid Payment Periodicity: {0}").format(
@@ -314,18 +337,19 @@ def create_payment_schedule(due_start_date, installment_count, payment_periodici
 
     base_amount = flt(amount_due / installment_count, 2)
     last_amount = flt(amount_due - base_amount * (installment_count - 1), 2)
+    amounts = [base_amount] * (installment_count - 1) + [last_amount]
+    percents = installment_percents(amounts, amount_due)
 
     start = getdate(due_start_date)
-    schedule = []
-    for i in range(installment_count):
-        amount = last_amount if i == installment_count - 1 else base_amount
-        schedule.append({
-            "installment_amount": amount,
-            "installment_in_words": format_currency_in_words(amount, currency),
+    return [
+        {
+            "installment_amount": amounts[i],
+            "installment_in_words": format_currency_in_words(amounts[i], currency),
             "installment_due_date": str(start + relativedelta(months=i * months)),
-        })
-
-    return schedule
+            "installment_percent": percents[i],
+        }
+        for i in range(installment_count)
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -338,7 +362,8 @@ def _assert_renewal_payment_editable(doc) -> None:
     if doc.docstatus != 1:
         frappe.throw(_("Only submitted contracts can be modified."))
     if not doc.is_renewed:
-        frappe.throw(_("Payment setup is only available on renewed contracts."))
+        frappe.throw(
+            _("Payment setup is only available on renewed contracts."))
 
 
 @frappe.whitelist()
@@ -357,7 +382,8 @@ def set_renewal_advance(contract_name, advance_payment_entry):
 
     _assert_renewal_payment_editable(doc)
     if doc.advance_payment_entry:
-        frappe.throw(_("An advance payment is already linked to this contract."))
+        frappe.throw(
+            _("An advance payment is already linked to this contract."))
     if doc.apply_installment_payment and doc.payment_schedule:
         frappe.throw(
             _("Installments are already set up; the advance can no longer be changed.")
@@ -372,11 +398,14 @@ def set_renewal_advance(contract_name, advance_payment_entry):
         as_dict=True,
     )
     if not pe:
-        frappe.throw(_("Payment Entry {0} does not exist.").format(frappe.bold(advance_payment_entry)))
+        frappe.throw(_("Payment Entry {0} does not exist.").format(
+            frappe.bold(advance_payment_entry)))
     if pe.docstatus != 1:
-        frappe.throw(_("Payment Entry {0} is not submitted.").format(frappe.bold(advance_payment_entry)))
+        frappe.throw(_("Payment Entry {0} is not submitted.").format(
+            frappe.bold(advance_payment_entry)))
     if pe.payment_type != "Receive":
-        frappe.throw(_("Payment Entry {0} is not a receive payment.").format(frappe.bold(advance_payment_entry)))
+        frappe.throw(_("Payment Entry {0} is not a receive payment.").format(
+            frappe.bold(advance_payment_entry)))
     if pe.company != doc.company:
         frappe.throw(_("Payment Entry {0} does not belong to Company {1}.").format(
             frappe.bold(advance_payment_entry), frappe.bold(doc.company)))
@@ -411,7 +440,8 @@ def set_renewal_advance(contract_name, advance_payment_entry):
 
     doc.advance_payment_entry = advance_payment_entry
     doc.advance_amount = advance_amount
-    doc.advance_amount_in_words = format_currency_in_words(advance_amount, pe.paid_to_account_currency)
+    doc.advance_amount_in_words = format_currency_in_words(
+        advance_amount, pe.paid_to_account_currency)
     doc.amount_due = max(0.0, flt(net_total - advance_amount, 2))
 
     doc.flags.ignore_validate_update_after_submit = True
@@ -440,12 +470,14 @@ def set_renewal_installments(contract_name, due_start_date, payment_periodicity,
 
     _assert_renewal_payment_editable(doc)
     if doc.apply_installment_payment:
-        frappe.throw(_("An installment schedule already exists for this contract."))
+        frappe.throw(
+            _("An installment schedule already exists for this contract."))
 
     amount_due = flt(flt(doc.net_total) - flt(doc.advance_amount), 2)
     if amount_due <= 0:
         frappe.throw(
-            _("Amount Due ({0}) must be greater than zero to create an installment schedule.").format(amount_due)
+            _("Amount Due ({0}) must be greater than zero to create an installment schedule.").format(
+                amount_due)
         )
 
     schedule = create_payment_schedule(

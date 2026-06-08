@@ -100,8 +100,9 @@ Only applies when `apply_installment_payment = 1`.
 
 | Field | Type | Description |
 |---|---|---|
+| `installment_percent` | Percent | Row's share of Amount Due (`installment_amount / amount_due * 100`); set at schedule generation and recomputed on save — **not** by payment events. See [installment_schedule.md](installment_schedule.md) |
 | `paid_amount` | Currency | Amount absorbed by this row (waterfall) |
-| `installment_per_payment` | Percent | `paid_amount / installment_amount * 100` |
+| `installment_per_payment` | Percent | `paid_amount / installment_amount * 100` (payment progress — distinct from `installment_percent`) |
 | `installment_payment_status` | Select | `Unpaid` / `Partially Paid` / `Paid` / `Overdue` |
 
 All fields are `allow_on_submit = 1` and written via
@@ -146,6 +147,7 @@ are deliberately **not** consulted — the Sales Order is the only reliable anch
 | [aggregation.md](aggregation.md) | Core advance-ledger aggregation algorithm in `utils/payment.py` |
 | [hooks.md](hooks.md) | How `doc_events` in `hooks.py` wires everything together |
 | [on_submit_sync.md](on_submit_sync.md) | Why and how `on_submit` syncs pre-existing payments |
+| [installment_schedule.md](installment_schedule.md) | How the installment schedule is generated and `installment_percent` is kept in sync |
 | [installment_payment.md](installment_payment.md) | Waterfall distribution algorithm for installment rows |
 | [overdue_scheduler.md](overdue_scheduler.md) | Daily scheduler that marks installment rows as Overdue |
 | [create_payment_buttons.md](create_payment_buttons.md) | `Create → Payment` / `Payment Request` buttons (made against the linked Sales Order) |
