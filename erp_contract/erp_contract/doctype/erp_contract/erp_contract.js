@@ -159,6 +159,12 @@ frappe.ui.form.on("ERP Contract", {
     },
 
     customer(frm) {
+        // Sales Order and Advance Payment Entry are scoped to the customer, so a
+        // customer change invalidates them. Clearing fires their own handlers, which
+        // cascade the cleanup (net_total, advance_amount, amount_due, payment_schedule).
+        if (frm.doc.sales_order) frm.set_value("sales_order", "");
+        if (frm.doc.advance_payment_entry) frm.set_value("advance_payment_entry", "");
+
         if (frm.doc.customer) {
             frappe.call({
                 method: "erp_contract.utils.party.get_default_contact",

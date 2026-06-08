@@ -32,7 +32,9 @@ class ERPContract(Document):
 
     def validate(self):
         self.validate_sales_order_uniqueness()
+        self.validate_sales_order_party()
         self.validate_advance_payment_uniqueness()
+        self.validate_advance_payment_party()
         self.validate_customer_representatives()
         self.validate_company_representatives()
         self.validate_company_primary_official()
@@ -88,6 +90,66 @@ class ERPContract(Document):
         """Ensure the Advance Payment Entry is not already linked to another submitted ERP Contract."""
         self._assert_field_unique(
             "advance_payment_entry", _("Advance Payment Entry"))
+
+    def validate_sales_order_party(self):
+        """Ensure the linked Sales Order is submitted and belongs to this contract's
+        customer and company (the client set_query restricts selection; this enforces
+        it server-side against API writes or a later customer change)."""
+        if not self.sales_order:
+            return
+
+        so = frappe.db.get_value(
+            "Sales Order", self.sales_order,
+            ["customer", "company", "docstatus"], as_dict=True,
+        )
+        if not so:
+            frappe.throw(_("Sales Order {0} does not exist.").format(frappe.bold(self.sales_order)))
+        if so.docstatus != 1:
+            frappe.throw(_("Sales Order {0} is not submitted.").format(frappe.bold(self.sales_order)))
+        if so.customer != self.customer:
+            frappe.throw(_("Sales Order {0} does not belong to Customer {1}.").format(
+                frappe.bold(self.sales_order), frappe.bold(self.customer)))
+        if so.company != self.company:
+            frappe.throw(_("Sales Order {0} does not belong to Company {1}.").format(
+                frappe.bold(self.sales_order), frappe.bold(self.company)))
+
+    def validate_advance_payment_party(self):
+        """Ensure the Advance Payment Entry is a submitted 'Receive' Payment Entry for
+        this contract's customer and company, and references the linked Sales Order.
+        Mirrors get_advance_payment_entries() so the saved value matches what the
+        picker offers."""
+        if not self.advance_payment_entry:
+            return
+
+        if not self.sales_order:
+            frappe.throw(_("Link a Sales Order before linking an Advance Payment Entry."))
+
+        pe = frappe.db.get_value(
+            "Payment Entry", self.advance_payment_entry,
+            ["party_type", "party", "company", "docstatus", "payment_type"], as_dict=True,
+        )
+        if not pe:
+            frappe.throw(_("Advance Payment Entry {0} does not exist.").format(
+                frappe.bold(self.advance_payment_entry)))
+        if pe.docstatus != 1:
+            frappe.throw(_("Advance Payment Entry {0} is not submitted.").format(
+                frappe.bold(self.advance_payment_entry)))
+        if pe.payment_type != "Receive":
+            frappe.throw(_("Advance Payment Entry {0} must be a 'Receive' Payment Entry.").format(
+                frappe.bold(self.advance_payment_entry)))
+        if pe.company != self.company:
+            frappe.throw(_("Advance Payment Entry {0} does not belong to Company {1}.").format(
+                frappe.bold(self.advance_payment_entry), frappe.bold(self.company)))
+        if pe.party_type != "Customer" or pe.party != self.customer:
+            frappe.throw(_("Advance Payment Entry {0} does not belong to Customer {1}.").format(
+                frappe.bold(self.advance_payment_entry), frappe.bold(self.customer)))
+        if not frappe.db.exists("Payment Entry Reference", {
+            "parent": self.advance_payment_entry,
+            "reference_doctype": "Sales Order",
+            "reference_name": self.sales_order,
+        }):
+            frappe.throw(_("Advance Payment Entry {0} does not reference Sales Order {1}.").format(
+                frappe.bold(self.advance_payment_entry), frappe.bold(self.sales_order)))
 
     def validate_company_primary_official(self):
         """Ensure the selected Company Primary Official has is_primary_official checked."""
