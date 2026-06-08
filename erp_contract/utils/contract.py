@@ -90,50 +90,32 @@ def get_default_terms_template():
 
 
 @frappe.whitelist()
-def get_terms_template(template_name, doc=None):
+def get_terms_template(template_name):
     """
-    Fetch terms and conditions from the ERP Contract Terms Template.
-    Renders Jinja variables using the provided doc context (ERPNext convention).
-    """
-    import json
+    Fetch the raw terms and conditions from the ERP Contract Terms Template.
 
+    The Jinja is intentionally NOT rendered. The term fields are Code (Jinja) fields
+    that hold the raw template source verbatim (like a Print Format's html field);
+    it is rendered for display only at print time, by the Print Format.
+    """
     if not template_name:
         return
 
-    if isinstance(doc, str):
-        doc = json.loads(doc)
-
     try:
         template_doc = frappe.get_doc("ERP Contract Terms Template", template_name)
-
-        template_terms = []
-        for terms in template_doc.get("terms", []):
-            primary = terms.terms_and_conditions_primary or ""
-            foreign = terms.terms_and_conditions_foreign or ""
-
-            if doc:
-                primary = frappe.render_template(primary, doc)
-                foreign = frappe.render_template(foreign, doc) if foreign else ""
-
-            template_terms.append({
-                "title_primary": terms.title_primary,
-                "terms_and_conditions_primary": primary,
-                "title_foreign": terms.title_foreign,
-                "terms_and_conditions_foreign": foreign,
-            })
-
-        return template_terms
-
     except frappe.DoesNotExistError:
         frappe.throw(
             _("ERP Contract Terms Template {0} does not exist").format(template_name))
-    except Exception as e:
-        frappe.log_error(
-            "Terms and Conditions Fetch",
-            f"Error fetching terms and conditions: {str(e)}")
-        frappe.throw(
-            _("Could not load terms template {0}. See error log for details.").format(template_name)
-        )
+
+    return [
+        {
+            "title_primary": terms.title_primary,
+            "terms_and_conditions_primary": terms.terms_and_conditions_primary or "",
+            "title_foreign": terms.title_foreign,
+            "terms_and_conditions_foreign": terms.terms_and_conditions_foreign or "",
+        }
+        for terms in template_doc.get("terms", [])
+    ]
 
 
 @frappe.whitelist()

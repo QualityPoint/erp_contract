@@ -79,10 +79,9 @@ app_include_css = [
 # ----------
 
 # add methods and filters to jinja environment
-# jinja = {
-# 	"methods": "erp_contract.utils.jinja_methods",
-# 	"filters": "erp_contract.utils.jinja_filters"
-# }
+jinja = {
+    "methods": ["erp_contract.utils.jinja_methods"],
+}
 
 # Installation
 # ------------

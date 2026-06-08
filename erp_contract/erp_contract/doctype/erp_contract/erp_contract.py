@@ -43,7 +43,6 @@ class ERPContract(Document):
         self.validate_company_primary_official()
         self.validate_contract_duration()
         self.validate_contract_terms()
-        self.render_contract_terms()
         self.validate_installment_payment()
         self.validate_signed_contract_attachment()
 
@@ -227,18 +226,6 @@ class ERPContract(Document):
             if term.terms_and_conditions_foreign:
                 validate_template(term.terms_and_conditions_foreign)
 
-    def render_contract_terms(self):
-        """Render Jinja variables in contract_terms child table using the current document as context."""
-        doc_context = self.as_dict()
-        for term in self.contract_terms:
-            if term.terms_and_conditions_primary:
-                term.terms_and_conditions_primary = frappe.render_template(
-                    term.terms_and_conditions_primary, doc_context
-                )
-            if term.terms_and_conditions_foreign:
-                term.terms_and_conditions_foreign = frappe.render_template(
-                    term.terms_and_conditions_foreign, doc_context
-                )
 
     def validate_installment_payment(self):
         from frappe.utils import flt
