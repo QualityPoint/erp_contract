@@ -15,7 +15,6 @@ class ERPContract(Document):
     def before_validate(self):
         self.clear_duration_fields()
         self.clear_installment_fields()
-        self.clear_schedule_on_advance_removed()
 
     def clear_duration_fields(self):
         if self.contract_category != "Duration-Based":
@@ -29,10 +28,6 @@ class ERPContract(Document):
             self.amount_due = 0
             self.installment_count = 0
             self.payment_periodicity = ""
-            self.payment_schedule = []
-
-    def clear_schedule_on_advance_removed(self):
-        if self.apply_installment_payment and not self.advance_payment_entry and self.payment_schedule:
             self.payment_schedule = []
 
     def validate(self):
@@ -229,6 +224,7 @@ class ERPContract(Document):
 
     def validate_installment_payment(self):
         from frappe.utils import flt
+        from erp_contract.utils.payment import installment_percents
 
         if not self.apply_installment_payment:
             return
@@ -237,15 +233,23 @@ class ERPContract(Document):
             frappe.throw(
                 _("Payment Schedule is empty"))
 
-        total = sum(flt(row.installment_amount)
-                    for row in self.payment_schedule)
+        amounts = [flt(row.installment_amount) for row in self.payment_schedule]
+        total = sum(amounts)
         expected = flt(flt(self.net_total) - flt(self.advance_amount), 2)
+        # Amount Due is always Net Total - Advance Amount; keep it authoritative
+        # server-side so it can never drift from the figure the schedule is checked against.
+        self.amount_due = expected
         if abs(total - expected) > 0.1:
             frappe.throw(
                 _("Total installment amount ({0}) does not match Amount Due ({1})").format(
                     flt(total, 2), expected
                 )
             )
+
+        # installment_percent is read-only/derived: recompute from the (possibly
+        # hand-edited) amounts so the column always mirrors the amounts and sums to 100.
+        for row, percent in zip(self.payment_schedule, installment_percents(amounts, expected)):
+            row.installment_percent = percent
 
 
 @frappe.whitelist()

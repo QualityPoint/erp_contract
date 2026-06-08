@@ -249,11 +249,12 @@ frappe.ui.form.on("ERP Contract", {
                 },
                 callback: function (r) {
                     if (r.message) {
-                        let data = r.message;
+                        // set_value(dict) commits asynchronously — chain so amount_due
+                        // is recomputed AFTER advance_amount is set, not before.
                         frm.set_value({
-                            'advance_amount': data.paid_amount,
-                            'advance_amount_in_words': data.advance_amount_in_words,
-                        });
+                            'advance_amount': r.message.paid_amount,
+                            'advance_amount_in_words': r.message.advance_amount_in_words,
+                        }).then(() => refresh_amount_due(frm));
                     }
                 }
             });
@@ -261,12 +262,7 @@ frappe.ui.form.on("ERP Contract", {
             frm.set_value({
                 'advance_amount': 0,
                 'advance_amount_in_words': '',
-                'amount_due': frm.doc.apply_installment_payment ? flt(frm.doc.net_total) : 0,
-            });
-            if (frm.doc.apply_installment_payment && frm.doc.payment_schedule && frm.doc.payment_schedule.length) {
-                frm.clear_table('payment_schedule');
-                frm.refresh_field('payment_schedule');
-            }
+            }).then(() => refresh_amount_due(frm));
         }
     },
 
@@ -281,13 +277,13 @@ frappe.ui.form.on("ERP Contract", {
                 callback: function (r) {
                     if (r.message) {
                         let data = r.message;
+                        // chain: recompute amount_due AFTER net_total is committed.
                         frm.set_value({
                             'currency': data.currency,
                             'total_taxes_and_charges': data.total_taxes_and_charges,
                             'net_total': data.net_total,
                             'net_total_in_words': data.net_total_in_words,
-                        });
-                        update_amount_due(frm);
+                        }).then(() => refresh_amount_due(frm));
                     }
                 }
             });
@@ -297,8 +293,7 @@ frappe.ui.form.on("ERP Contract", {
                 'total_taxes_and_charges': 0,
                 'net_total': 0,
                 'net_total_in_words': '',
-            });
-            update_amount_due(frm);
+            }).then(() => refresh_amount_due(frm));
         }
     },
 
@@ -310,12 +305,13 @@ frappe.ui.form.on("ERP Contract", {
     },
 
     apply_installment_payment: function (frm) {
-        if (!frm.doc.apply_installment_payment) {
-            frm.set_value('amount_due', 0);
-            frm.clear_table('payment_schedule');
-            frm.refresh_field('payment_schedule');
+        if (frm.doc.apply_installment_payment) {
+            // Turning installments on with an advance already linked → size Amount Due
+            // to (Net Total − Advance Amount) and clear any stale schedule.
+            refresh_amount_due(frm);
         } else {
-            update_amount_due(frm);
+            frm.set_value('amount_due', 0);
+            clear_payment_schedule(frm);
         }
     },
 
@@ -350,6 +346,7 @@ frappe.ui.form.on("ERP Contract", {
                         d.installment_amount = row.installment_amount;
                         d.installment_in_words = row.installment_in_words;
                         d.installment_due_date = row.installment_due_date;
+                        d.installment_percent = row.installment_percent;
                     });
                     frm.refresh_field('payment_schedule');
                 }
@@ -358,10 +355,21 @@ frappe.ui.form.on("ERP Contract", {
     }
 });
 
-function update_amount_due(frm) {
+// Recompute Amount Due (= Net Total − Advance Amount) whenever an input to it changes
+// (Sales Order, advance, installment toggle), and drop any existing schedule — it was
+// built for the previous Amount Due and is now stale. No-op unless installments apply.
+function refresh_amount_due(frm) {
     if (!frm.doc.apply_installment_payment) return;
-    let amount_due = flt(frm.doc.net_total) - flt(frm.doc.advance_amount);
-    frm.set_value('amount_due', amount_due > 0 ? amount_due : 0);
+    const amount_due = Math.max(flt(frm.doc.net_total) - flt(frm.doc.advance_amount), 0);
+    frm.set_value('amount_due', amount_due);
+    clear_payment_schedule(frm);
+}
+
+function clear_payment_schedule(frm) {
+    if ((frm.doc.payment_schedule || []).length) {
+        frm.clear_table('payment_schedule');
+        frm.refresh_field('payment_schedule');
+    }
 }
 
 function get_contract_terms(frm, template_name) {
