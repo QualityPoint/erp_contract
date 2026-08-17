@@ -1,11 +1,12 @@
 [project]
 name = "erp_contract"
 authors = [
-    { name = "Quality Point", email = "bahnasyassem@gmail.com"}
+    { name = "QualityPoint", email = "erp@qp.sa"}
 ]
 description = "Contract lifecycle management with payment schedules, terms, and party tracking for ERPNext."
 requires-python = ">=3.14"
 readme = "README.md"
+license = { file = "license.txt" }
 dynamic = ["version"]
 dependencies = [
     # "frappe~=16.0.0" # Installed and managed by bench.

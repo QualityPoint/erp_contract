@@ -2,8 +2,8 @@ app_name = "erp_contract"
 app_title = "ERP Contract"
 app_publisher = "QualityPoint"
 app_description = "Contract lifecycle management with payment schedules, terms, and party tracking for ERPNext."
-app_email = "bahnasyassem@gmail.com"
-app_license = "agpl-3.0"
+app_email = "erp@qp.sa"
+app_license = "gpl-3.0"
 
 # Apps
 # ------------------
